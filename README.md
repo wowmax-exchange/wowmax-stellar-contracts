@@ -44,6 +44,10 @@ single protocol (one protocol per path). This contract goes further:
 | Soroswap | UniswapV2-style AMM (Soroban) | live |
 | Aquarius | StableSwap / weighted AMM (Soroban) | live |
 | Phoenix | XYK AMM (Soroban) | live |
+| Comet | Comet pool AMM (Soroban) | adapter only — not deployed |
+
+The Comet adapter (`contracts/adapters/comet`) is implemented and
+unit-tested but is not wired into the deployed executors.
 
 Classic SDEX (Stellar's native order book) is **not** executed by this
 contract — SDEX is path-payment-based, not a contract call, and is handled
@@ -62,6 +66,7 @@ exposes:
 | `swap_aqua(...)` | Single Aquarius `swap_chained` hop on a named pool. |
 | `swap_phoenix(...)` | Single Phoenix pool swap. |
 | `swap_aqua_then_soroswap(...)` | Cross-protocol two-leg helper (Aquarius → Soroswap). |
+| `swap_merge(...)` | Pooled-merge execution (deployed as the separate `executor_merge` contract): runs the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). One swap per graph edge keeps heavy multi-branch routes within the Soroban instruction budget. |
 
 ### Plan model
 
@@ -84,7 +89,8 @@ All functions are validated on **Stellar mainnet** against live pools. See
 [`docs/evidence/mainnet-tx.md`](./docs/evidence/mainnet-tx.md) for the
 transaction list with explorer links.
 
-Deployed contract (mainnet): see
+Deployed contracts (mainnet): the base executor and the pooled-merge
+executor (`executor_merge`) are both listed in
 [`public/mainnet.contracts.json`](./public/mainnet.contracts.json).
 
 ## Building
