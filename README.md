@@ -89,16 +89,44 @@ All functions are validated on **Stellar mainnet** against live pools. See
 [`docs/evidence/mainnet-tx.md`](./docs/evidence/mainnet-tx.md) for the
 transaction list with explorer links.
 
-Deployed contracts (mainnet): the base executor and the pooled-merge
-executor (`executor_merge`) are both listed in
-[`public/mainnet.contracts.json`](./public/mainnet.contracts.json).
+Deployed contract (mainnet):
+[`CBLMXS6UHI6Y7QO4ZEO5H2R4SAMTSE2VPX3IP4VZREWNSBHQYQFAZOPX`](https://stellar.expert/explorer/public/contract/CBLMXS6UHI6Y7QO4ZEO5H2R4SAMTSE2VPX3IP4VZREWNSBHQYQFAZOPX),
+wasm sha256 `3bc4be82c8e8a738e947ecf416af63dfd4a9b462b9cfa5a9324a0b30aeb49276`.
+A single deployment now carries every entry point including `swap_merge`;
+the two contracts it replaces are recorded under `superseded` in
+[`public/mainnet.contracts.json`](./public/mainnet.contracts.json). The
+contract has **no admin and no upgrade path** — replacement is by
+redeployment.
 
-## Building
+## Safety properties
+
+- Output is measured as the contract's **own `token_out` balance delta**,
+  never the figure a venue reports, so an inflated return cannot make the
+  forward transfer exceed the contract's balance.
+- `amount_out_min` is enforced on the **summed output across all strands**;
+  any failing branch reverts the whole transaction.
+- Token continuity is validated: a strand must start at `token_in`, each
+  hop must consume the previous hop's `token_out`, and the last hop must
+  produce `token_out`.
+- `deadline` is enforced on-chain, not delegated to the venue.
+- Amounts are validated before any cast or transfer; self-swaps and
+  degenerate hops are rejected.
+- No funds are retained: after execution the contract's balances of the
+  tokens involved are zero.
+
+## Building and testing
 
 ```bash
 cd contracts
 stellar contract build
+cargo test -p wowmax-stellar-router
 ```
+
+The executor test suite covers the splitter arithmetic and remainder
+handling, the slippage guard, token continuity, input validation, and a
+regression in which a venue reports a larger output than it delivers. It
+also reports the CPU budget consumed by a deliberately heavy plan
+(`cargo test -- --nocapture`).
 
 Requires `stellar` CLI 26+ and the `wasm32v1-none` target. Produces
 `contracts/target/wasm32v1-none/release/wowmax_stellar_router.wasm`.
