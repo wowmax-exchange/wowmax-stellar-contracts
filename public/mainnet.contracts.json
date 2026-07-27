@@ -4,10 +4,10 @@
   "contracts": {
     "executor": {
       "name": "wowmax-stellar-router",
-      "description": "On-chain swap-plan executor: atomic split + multi-hop + cross-protocol across Soroswap, Aquarius, Phoenix, plus swap_merge, which executes the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). Output is measured as the contract's own token_out balance delta on every entry point, hop-to-hop token continuity is validated, and amount_out_min is enforced on the summed output. The contract has no admin and no upgrade path.",
-      "address": "CBLMXS6UHI6Y7QO4ZEO5H2R4SAMTSE2VPX3IP4VZREWNSBHQYQFAZOPX",
-      "wasmSha256": "3bc4be82c8e8a738e947ecf416af63dfd4a9b462b9cfa5a9324a0b30aeb49276",
-      "deployTx": "b7a8ffb316c69fce3b42e09ad80c1cc6ce2eaac5414ee3c795e35bde0dac2548",
+      "description": "On-chain swap-plan executor: atomic split + multi-hop + cross-protocol across Soroswap, Aquarius, Phoenix, plus swap_merge, which executes the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). Output is measured as the contract's own token_out balance delta on every entry point, hop-to-hop token continuity is validated, and amount_out_min is enforced on the summed output. The contract has no admin and no upgrade path. Merge execution tracks per-call token provenance: only the input pulled in this call and the output measured from each fill may be spent, so balances held at the address are invisible to a plan. Every venue invocation must consume exactly the amount it was handed.",
+      "address": "CAZ3F6BPYHZ6QDXFXZUKL2CDQDWZPVFCZSE5SJDKULZCA7IFWPPMB72K",
+      "wasmSha256": "77e26e62a0b91dc35e51677d51eb8c94a4ca8637312253689faed81a18f35a33",
+      "sourceCommit": "3474942",
       "entrypoints": [
         "swap",
         "swap_soroswap",
@@ -15,19 +15,25 @@
         "swap_phoenix",
         "swap_aqua_then_soroswap",
         "swap_merge"
-      ]
+      ],
+      "note": "Tokens sent to this address outside a swap cannot be recovered: the contract has no admin function and no plan can reach a balance it did not create."
     }
   },
   "superseded": [
     {
       "role": "executor",
+      "address": "CBLMXS6UHI6Y7QO4ZEO5H2R4SAMTSE2VPX3IP4VZREWNSBHQYQFAZOPX",
+      "note": "Superseded by CAZ3F6BP after an external second-opinion review. Its swap_merge treated the contract's absolute token balance as spendable capital; balances were verified zero throughout, so this was never exploited."
+    },
+    {
+      "role": "executor",
       "address": "CALCLWVZT6CQDSJV4MP3LOLSGKMYJNOWO5IL4Y54OY2EGZ2TF6RAF7QC",
-      "note": "Original executor. Superseded by CBLMXS6U…: the current build adds swap_merge and the balance-delta accounting, so a single deployment now covers both roles. Contracts are immutable; replacement is by redeployment."
+      "note": "Original executor. Superseded by CBLMXS6U\u2026: the current build adds swap_merge and the balance-delta accounting, so a single deployment now covers both roles. Contracts are immutable; replacement is by redeployment."
     },
     {
       "role": "executor_merge",
       "address": "CAQPNW2M6G5SV3AWJKUCQPOZ5RKEUUFYGSASU4WRCIVSQRXRGHQ2HRYY",
-      "note": "Pooled-merge executor. Superseded by CBLMXS6U…, which carries the same entry points plus the hardened accounting and validation."
+      "note": "Pooled-merge executor. Superseded by CBLMXS6U\u2026, which carries the same entry points plus the hardened accounting and validation."
     }
   ],
   "venues": {
