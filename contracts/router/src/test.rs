@@ -11,12 +11,14 @@
 //! larger output than it actually delivers, which is how `inflated_report_
 //! is_ignored` proves the contract trusts its own balance delta.
 
+extern crate std;
+
 use soroban_sdk::testutils::{Address as _, Ledger as _};
 use soroban_sdk::{
     contract, contractimpl, symbol_short, token, vec, Address, BytesN, Env, Vec,
 };
 
-use crate::{Hop, Strand, WowmaxAggregator, WowmaxAggregatorClient};
+use crate::{Fill, Hop, Stage, Strand, WowmaxAggregator, WowmaxAggregatorClient};
 
 // ----------------------------- mock venue -----------------------------
 
@@ -32,6 +34,14 @@ impl MockVenue {
         env.storage().instance().set(&symbol_short!("num"), &num);
         env.storage().instance().set(&symbol_short!("den"), &den);
         env.storage().instance().set(&symbol_short!("bonus"), &report_bonus);
+        env.storage().instance().set(&symbol_short!("mode"), &0u32);
+    }
+
+    /// Hostile behaviour switch.
+    /// 0 = honest, 1 = deliver output but never pull the input,
+    /// 2 = pull only part of the authorized input.
+    pub fn set_mode(env: Env, mode: u32) {
+        env.storage().instance().set(&symbol_short!("mode"), &mode);
     }
 
     pub fn swap_exact_tokens_for_tokens(
@@ -50,8 +60,20 @@ impl MockVenue {
         let token_in = path.get(0).unwrap();
         let token_out = path.last().unwrap();
 
-        // Pull the input exactly as the real router does.
-        token::Client::new(&env, &token_in).transfer(&to, &pool, &amount_in);
+        let mode: u32 = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("mode"))
+            .unwrap_or(0u32);
+
+        // Pull the input exactly as the real router does — unless we are
+        // told to misbehave.
+        if mode == 0 {
+            token::Client::new(&env, &token_in).transfer(&to, &pool, &amount_in);
+        } else if mode == 2 {
+            let partial = amount_in / 2;
+            token::Client::new(&env, &token_in).transfer(&to, &pool, &partial);
+        }
 
         let delivered = amount_in * num / den;
         token::StellarAssetClient::new(&env, &token_out).mint(&to, &delivered);
@@ -266,6 +288,219 @@ fn expired_deadline_reverts() {
     f.client.swap(
         &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &999_999u64, &plan,
     );
+}
+
+/// Not a pass/fail test — it prints the CPU/memory budget consumed by a
+/// deliberately heavy plan (4 strands x 2 hops = 8 venue calls) so the
+/// cost of balance-delta accounting can be compared against the Soroban
+/// per-transaction ceiling. Run with `cargo test -- --nocapture`.
+#[test]
+fn budget_heavy_plan() {
+    let f = setup(1, 1, 0);
+    let token_c = env_token(&f.env);
+    let chain = vec![
+        &f.env,
+        hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b),
+        hop(&f.env, &f.venue, &f.pool, &f.token_b, &token_c),
+    ];
+    let plan = vec![
+        &f.env,
+        strand(1, chain.clone()),
+        strand(1, chain.clone()),
+        strand(1, chain.clone()),
+        strand(1, chain.clone()),
+    ];
+
+    let out = f.client.swap(
+        &f.user, &f.token_a, &token_c, &1_000i128, &1i128, &2_000_000u64, &plan,
+    );
+    assert_eq!(out, 1_000);
+
+    let budget = f.env.cost_estimate().budget();
+    std::println!("=== heavy plan: 4 strands x 2 hops (8 venue calls) ===");
+    std::println!("CPU instructions: {}", budget.cpu_instruction_cost());
+    std::println!("memory bytes:     {}", budget.memory_bytes_cost());
+}
+
+// ---------------------- merge / provenance / hostile ----------------------
+
+/// A single-hop fill on the mock venue (venue = 0, Soroswap interface).
+/// `token_in` is the stage's token: the contract passes it separately, but
+/// the mock reads both ends of the swap out of `soroswap_path`.
+fn fill(
+    env: &Env,
+    venue: &Address,
+    pool: &Address,
+    token_in: &Address,
+    token_out: &Address,
+    parts: u32,
+) -> Fill {
+    Fill {
+        venue: 0,
+        pool: pool.clone(),
+        token_out: token_out.clone(),
+        parts,
+        aqua_router: venue.clone(),
+        aqua_pool_tokens: vec![env],
+        aqua_pool_index: BytesN::from_array(env, &[0u8; 32]),
+        soroswap_router: venue.clone(),
+        soroswap_path: vec![env, token_in.clone(), token_out.clone()],
+    }
+}
+
+#[test]
+fn merge_happy_path_two_stages() {
+    let f = setup(1, 1, 0);
+    let token_c = env_token(&f.env);
+    let stages = vec![
+        &f.env,
+        Stage {
+            token: f.token_a.clone(),
+            fills: vec![&f.env, fill(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b, 1)],
+        },
+        Stage {
+            token: f.token_b.clone(),
+            fills: vec![&f.env, fill(&f.env, &f.venue, &f.pool, &f.token_b, &token_c, 1)],
+        },
+    ];
+
+    let out = f.client.swap_merge(
+        &f.user, &f.token_a, &token_c, &1_000i128, &1i128, &2_000_000u64, &stages,
+    );
+    assert_eq!(out, 1_000);
+    assert_eq!(token::Client::new(&f.env, &token_c).balance(&f.user), 1_000);
+}
+
+/// H-01 regression. The contract is pre-loaded with token V. A plan that
+/// names V as a stage token must not be able to spend it.
+#[test]
+#[should_panic(expected = "stage token has no current-call balance")]
+fn merge_cannot_spend_pre_existing_balance() {
+    let f = setup(1, 1, 0);
+    let token_v = env_token(&f.env);
+    let contract_addr = f.client.address.clone();
+    // Someone's tokens are sitting in the contract.
+    token::StellarAssetClient::new(&f.env, &token_v).mint(&contract_addr, &500_000i128);
+
+    let stages = vec![
+        &f.env,
+        // Stage 1 tries to sweep the pre-existing V.
+        Stage {
+            token: token_v.clone(),
+            fills: vec![&f.env, fill(&f.env, &f.venue, &f.pool, &token_v, &f.token_b, 1)],
+        },
+        Stage {
+            token: f.token_a.clone(),
+            fills: vec![&f.env, fill(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b, 1)],
+        },
+    ];
+
+    f.client.swap_merge(
+        &f.user, &f.token_a, &f.token_b, &1i128, &0i128, &2_000_000u64, &stages,
+    );
+}
+
+/// The pre-existing balance must still be there after the attempt fails.
+#[test]
+fn merge_sweep_attempt_leaves_balance_untouched() {
+    let f = setup(1, 1, 0);
+    let token_v = env_token(&f.env);
+    let contract_addr = f.client.address.clone();
+    token::StellarAssetClient::new(&f.env, &token_v).mint(&contract_addr, &500_000i128);
+
+    let stages = vec![
+        &f.env,
+        Stage {
+            token: token_v.clone(),
+            fills: vec![&f.env, fill(&f.env, &f.venue, &f.pool, &token_v, &f.token_b, 1)],
+        },
+    ];
+
+    let res = f.client.try_swap_merge(
+        &f.user, &f.token_a, &f.token_b, &1i128, &0i128, &2_000_000u64, &stages,
+    );
+    assert!(res.is_err(), "sweeping a pre-existing balance must fail");
+    assert_eq!(
+        token::Client::new(&f.env, &token_v).balance(&contract_addr),
+        500_000,
+        "the pre-existing balance must be untouched"
+    );
+}
+
+/// A stage that produces a token nobody consumes is a malformed plan.
+#[test]
+#[should_panic(expected = "plan leaves an unconsumed balance")]
+fn merge_rejects_dead_end_stage() {
+    let f = setup(1, 1, 0);
+    let token_c = env_token(&f.env);
+    let token_d = env_token(&f.env);
+    let stages = vec![
+        &f.env,
+        Stage {
+            token: f.token_a.clone(),
+            fills: vec![
+                &f.env,
+                fill(&f.env, &f.venue, &f.pool, &f.token_a, &token_c, 1),
+                // half of the input ends up in D, which no stage consumes
+                fill(&f.env, &f.venue, &f.pool, &f.token_a, &token_d, 1),
+            ],
+        },
+        Stage {
+            token: token_c.clone(),
+            fills: vec![&f.env, fill(&f.env, &f.venue, &f.pool, &token_c, &f.token_b, 1)],
+        },
+    ];
+
+    f.client.swap_merge(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &2_000_000u64, &stages,
+    );
+}
+
+/// M-01 regression: a venue that delivers output without taking the input
+/// must not be able to leave the user's funds in the contract.
+#[test]
+#[should_panic(expected = "venue did not consume the exact input")]
+fn venue_that_does_not_pull_input_reverts() {
+    let f = setup(1, 1, 0);
+    MockVenueClient::new(&f.env, &f.venue).set_mode(&1u32);
+    let plan = vec![
+        &f.env,
+        strand(1, vec![&f.env, hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b)]),
+    ];
+    f.client.swap(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &2_000_000u64, &plan,
+    );
+}
+
+/// Same for partial consumption.
+#[test]
+#[should_panic(expected = "venue did not consume the exact input")]
+fn venue_that_pulls_partially_reverts() {
+    let f = setup(1, 1, 0);
+    MockVenueClient::new(&f.env, &f.venue).set_mode(&2u32);
+    let plan = vec![
+        &f.env,
+        strand(1, vec![&f.env, hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b)]),
+    ];
+    f.client.swap(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &2_000_000u64, &plan,
+    );
+}
+
+/// After a successful swap the contract must hold nothing of either token.
+#[test]
+fn no_funds_retained_after_swap() {
+    let f = setup(2, 1, 0);
+    let contract_addr = f.client.address.clone();
+    let plan = vec![
+        &f.env,
+        strand(1, vec![&f.env, hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b)]),
+    ];
+    f.client.swap(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &2_000_000u64, &plan,
+    );
+    assert_eq!(token::Client::new(&f.env, &f.token_a).balance(&contract_addr), 0);
+    assert_eq!(token::Client::new(&f.env, &f.token_b).balance(&contract_addr), 0);
 }
 
 fn env_token(env: &Env) -> Address {

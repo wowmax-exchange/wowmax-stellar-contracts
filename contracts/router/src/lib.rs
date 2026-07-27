@@ -11,6 +11,7 @@
 //! Next: cross-protocol single-call plan, then the parts splitter (S4).
 
 use soroban_sdk::auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation};
+use soroban_sdk::Map;
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, token, vec, Address, BytesN, Env,
     IntoVal, Symbol, Val, Vec,
@@ -95,6 +96,17 @@ fn require_deadline(env: &Env, deadline: u64) {
 /// The end-to-end input and output token must differ: every accounting
 /// path below measures the contract's token_out balance delta, and a
 /// self-swap would fold the pulled input into that delta.
+/// A venue may pull at most the amount the contract pre-authorized, but
+/// nothing forces it to pull anything at all. If it under-consumes, the
+/// user's input silently stays in the contract. Requiring exact
+/// consumption turns that into a revert instead of a stranded balance.
+fn require_consumed(env: &Env, token: &Address, contract: &Address, before: i128, expected: i128) {
+    let after: i128 = token::Client::new(env, token).balance(contract);
+    if before - after != expected {
+        panic!("venue did not consume the exact input");
+    }
+}
+
 fn require_distinct(token_in: &Address, token_out: &Address) {
     if token_in == token_out {
         panic!("token_in equals token_out");
@@ -128,6 +140,7 @@ impl WowmaxAggregator {
         let out_before: i128 = token::Client::new(&env, &token_out).balance(&contract);
 
         token::Client::new(&env, &token_in).transfer(&user, &contract, &amount_in);
+        let src_before: i128 = token::Client::new(&env, &token_in).balance(&contract);
 
         let transfer_args: Vec<Val> = vec![
             &env,
@@ -163,6 +176,7 @@ impl WowmaxAggregator {
         if amounts.is_empty() {
             panic!("empty router response");
         }
+        require_consumed(&env, &token_in, &contract, src_before, amount_in);
         // Trust the balance we actually hold, not the number the venue
         // reported: an inflated return would otherwise make the forward
         // transfer exceed the contract's balance.
@@ -202,10 +216,12 @@ impl WowmaxAggregator {
         token_out: Address,
         amount_in: i128,
         amount_out_min: i128,
+        deadline: u64,
     ) -> i128 {
         user.require_auth();
         require_amounts(amount_in, amount_out_min);
         require_distinct(&token_in, &token_out);
+        require_deadline(&env, deadline);
         let contract = env.current_contract_address();
         let _ = &pool; // retained in signature for call-site compatibility; Aquarius auth targets the router, not the pool
 
@@ -213,6 +229,8 @@ impl WowmaxAggregator {
 
         // 1) Pull input from the user.
         token::Client::new(&env, &token_in).transfer(&user, &contract, &amount_in);
+
+        let src_before: i128 = token::Client::new(&env, &token_in).balance(&contract);
 
         // 2) Pre-authorize the router to move our token_in. Aquarius's
         //    swap_chained pulls token_in from the holder TO THE ROUTER
@@ -266,6 +284,7 @@ impl WowmaxAggregator {
             &Symbol::new(&env, "swap_chained"),
             args,
         );
+        require_consumed(&env, &token_in, &contract, src_before, amount_in);
         // Balance delta, not the reported figure (see swap_soroswap).
         let out_after: i128 = token::Client::new(&env, &token_out).balance(&contract);
         let out: i128 = out_after - out_before;
@@ -301,16 +320,20 @@ impl WowmaxAggregator {
         token_out: Address,
         amount_in: i128,
         amount_out_min: i128,
+        deadline: u64,
     ) -> i128 {
         user.require_auth();
         require_amounts(amount_in, amount_out_min);
         require_distinct(&token_in, &token_out);
+        require_deadline(&env, deadline);
         let contract = env.current_contract_address();
 
         let out_before: i128 = token::Client::new(&env, &token_out).balance(&contract);
 
         // 1) Pull input from the user.
         token::Client::new(&env, &token_in).transfer(&user, &contract, &amount_in);
+
+        let src_before: i128 = token::Client::new(&env, &token_in).balance(&contract);
 
         // 2) Pre-authorize the pool to move our token_in. Target guess =
         //    the pool itself (Phoenix pools pull the offer). If simulation
@@ -349,10 +372,15 @@ impl WowmaxAggregator {
             amount_in.into_val(&env),
             amount_out_min.into_val(&env), // ask_asset_min_amount = Some(out_min)
             none_val,                      // max_spread_bps = None
-            none_val,                      // deadline = None
+            if deadline == 0 {
+                none_val
+            } else {
+                Some(deadline).into_val(&env)
+            }, // deadline
             none_val,                      // max_allowed_fee_bps = None
         ];
         let _reported: i128 = env.invoke_contract(&pool, &Symbol::new(&env, "swap"), args);
+        require_consumed(&env, &token_in, &contract, src_before, amount_in);
         // Balance delta, not the reported figure (see swap_soroswap).
         let out_after: i128 = token::Client::new(&env, &token_out).balance(&contract);
         let out: i128 = out_after - out_before;
@@ -416,6 +444,7 @@ impl WowmaxAggregator {
 
         // Pull leg-1 input from the user.
         token::Client::new(&env, &token_in).transfer(&user, &contract, &amount_in);
+        let src_before: i128 = token::Client::new(&env, &token_in).balance(&contract);
 
         // ---- LEG 1: Aquarius swap_chained (token_in -> mid_token) ----
         let l1_transfer: Vec<Val> = vec![
@@ -456,6 +485,7 @@ impl WowmaxAggregator {
             l1_args,
         );
 
+        require_consumed(&env, &token_in, &contract, src_before, amount_in);
         // Leg-1 delta = leg-2 input.
         let mid_after: i128 = token::Client::new(&env, &mid_token).balance(&contract);
         let mid_amt: i128 = mid_after - mid_before;
@@ -497,6 +527,7 @@ impl WowmaxAggregator {
         if amounts.is_empty() {
             panic!("empty router response");
         }
+        require_consumed(&env, &mid_token, &contract, mid_after, mid_amt);
         let out_after: i128 = token::Client::new(&env, &token_out).balance(&contract);
         let out: i128 = out_after - out_before;
         if out <= 0 {
@@ -600,9 +631,12 @@ impl WowmaxAggregator {
                     panic!("strand must end at token_out");
                 }
 
-                // Measure what the venue actually delivered.
+                // Measure what the venue actually delivered AND that it
+                // took exactly what it was given.
                 let hop_before: i128 =
                     token::Client::new(&env, &hop.token_out).balance(&contract);
+                let src_before: i128 =
+                    token::Client::new(&env, &hop.token_in).balance(&contract);
                 if hop.venue == 0 {
                     exec_soroswap_edge(
                         &env, &contract, &hop.soroswap_router, &hop.pool, &hop.token_in,
@@ -618,6 +652,7 @@ impl WowmaxAggregator {
                 } else {
                     panic!("bad venue");
                 }
+                require_consumed(&env, &hop.token_in, &contract, src_before, hop_in);
                 let hop_after: i128 =
                     token::Client::new(&env, &hop.token_out).balance(&contract);
                 let out: i128 = hop_after - hop_before;
@@ -677,15 +712,22 @@ impl WowmaxAggregator {
         // Pull the whole input once.
         token::Client::new(&env, &token_in).transfer(&user, &contract, &amount_in);
 
+        // Current-call provenance. Only tokens this call pulled in or
+        // produced may be spent; the contract's pre-existing balances are
+        // invisible to the plan. Without this a crafted stage list could
+        // name any token the contract happens to hold and hand it to an
+        // attacker-controlled "venue" through the pre-authorized transfer.
+        let mut avail: Map<Address, i128> = Map::new(&env);
+        avail.set(token_in.clone(), amount_in);
+
         let mut si = 0u32;
         while si < n {
             let stage = stages.get(si).unwrap();
             let stage_token = stage.token.clone();
 
-            let bal: i128 = token::Client::new(&env, &stage_token).balance(&contract);
+            let bal: i128 = avail.get(stage_token.clone()).unwrap_or(0);
             if bal <= 0 {
-                si += 1;
-                continue;
+                panic!("stage token has no current-call balance");
             }
 
             let fills = stage.fills;
@@ -719,6 +761,10 @@ impl WowmaxAggregator {
                     panic!("degenerate fill");
                 }
                 if fill_in > 0 {
+                    let src_before: i128 =
+                        token::Client::new(&env, &stage_token).balance(&contract);
+                    let dst_before: i128 =
+                        token::Client::new(&env, &fill.token_out).balance(&contract);
                     if fill.venue == 0 {
                         exec_soroswap_edge(
                             &env, &contract, &fill.soroswap_router, &fill.pool,
@@ -734,19 +780,48 @@ impl WowmaxAggregator {
                     } else {
                         panic!("bad venue");
                     }
+                    require_consumed(&env, &stage_token, &contract, src_before, fill_in);
+                    let dst_after: i128 =
+                        token::Client::new(&env, &fill.token_out).balance(&contract);
+                    let produced: i128 = dst_after - dst_before;
+                    if produced <= 0 {
+                        panic!("fill produced no output");
+                    }
+                    let src_left: i128 = avail.get(stage_token.clone()).unwrap_or(0) - fill_in;
+                    avail.set(stage_token.clone(), src_left);
+                    let dst_have: i128 = avail.get(fill.token_out.clone()).unwrap_or(0);
+                    avail.set(fill.token_out.clone(), dst_have + produced);
                 }
                 fi += 1;
             }
             si += 1;
         }
 
-        let out_after: i128 = token::Client::new(&env, &token_out).balance(&contract);
-        let total_out: i128 = out_after - out_before;
+        // Nothing this call created may be left behind: every tracked
+        // token other than token_out must be fully consumed. A dead-end
+        // stage is a malformed plan, not a donation to the contract.
+        let keys = avail.keys();
+        let kn = keys.len();
+        let mut ki = 0u32;
+        while ki < kn {
+            let k = keys.get(ki).unwrap();
+            if k != token_out && avail.get(k.clone()).unwrap_or(0) != 0 {
+                panic!("plan leaves an unconsumed balance");
+            }
+            ki += 1;
+        }
+
+        let total_out: i128 = avail.get(token_out.clone()).unwrap_or(0);
         if total_out <= 0 {
             panic!("no output");
         }
         if total_out < amount_out_min {
             panic!("amount_out_min not met");
+        }
+        // Cross-check against the contract's own books before paying out.
+        let out_after: i128 = token::Client::new(&env, &token_out).balance(&contract);
+        if out_after - out_before < total_out {
+            panic!("accounting mismatch");
         }
 
         token::Client::new(&env, &token_out).transfer(&contract, &user, &total_out);
