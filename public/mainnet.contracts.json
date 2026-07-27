@@ -4,13 +4,10 @@
   "contracts": {
     "executor": {
       "name": "wowmax-stellar-router",
-      "description": "On-chain swap-plan executor: atomic split + multi-hop + cross-protocol across Soroswap, Aquarius, Phoenix.",
-      "address": "CALCLWVZT6CQDSJV4MP3LOLSGKMYJNOWO5IL4Y54OY2EGZ2TF6RAF7QC"
-    },
-    "executor_merge": {
-      "name": "wowmax-stellar-router (merge)",
-      "description": "Pooled-merge executor: same swap/swap_* entry points plus swap_merge, which executes the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). One swap per graph edge keeps heavy multi-branch routes within the Soroban instruction budget.",
-      "address": "CAQPNW2M6G5SV3AWJKUCQPOZ5RKEUUFYGSASU4WRCIVSQRXRGHQ2HRYY",
+      "description": "On-chain swap-plan executor: atomic split + multi-hop + cross-protocol across Soroswap, Aquarius, Phoenix, plus swap_merge, which executes the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). Output is measured as the contract's own token_out balance delta on every entry point, hop-to-hop token continuity is validated, and amount_out_min is enforced on the summed output. The contract has no admin and no upgrade path.",
+      "address": "CBLMXS6UHI6Y7QO4ZEO5H2R4SAMTSE2VPX3IP4VZREWNSBHQYQFAZOPX",
+      "wasmSha256": "3bc4be82c8e8a738e947ecf416af63dfd4a9b462b9cfa5a9324a0b30aeb49276",
+      "deployTx": "b7a8ffb316c69fce3b42e09ad80c1cc6ce2eaac5414ee3c795e35bde0dac2548",
       "entrypoints": [
         "swap",
         "swap_soroswap",
@@ -21,6 +18,18 @@
       ]
     }
   },
+  "superseded": [
+    {
+      "role": "executor",
+      "address": "CALCLWVZT6CQDSJV4MP3LOLSGKMYJNOWO5IL4Y54OY2EGZ2TF6RAF7QC",
+      "note": "Original executor. Superseded by CBLMXS6U…: the current build adds swap_merge and the balance-delta accounting, so a single deployment now covers both roles. Contracts are immutable; replacement is by redeployment."
+    },
+    {
+      "role": "executor_merge",
+      "address": "CAQPNW2M6G5SV3AWJKUCQPOZ5RKEUUFYGSASU4WRCIVSQRXRGHQ2HRYY",
+      "note": "Pooled-merge executor. Superseded by CBLMXS6U…, which carries the same entry points plus the hardened accounting and validation."
+    }
+  ],
   "venues": {
     "soroswap": {
       "router": "CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH",
