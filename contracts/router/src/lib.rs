@@ -648,7 +648,7 @@ impl WowmaxAggregator {
                         &hop.aqua_pool_index, &hop.token_in, &hop.token_out, hop_in,
                     );
                 } else if hop.venue == 2 {
-                    exec_phoenix_edge(&env, &contract, &hop.pool, &hop.token_in, hop_in);
+                    exec_phoenix_edge(&env, &contract, &hop.pool, &hop.token_in, hop_in, deadline);
                 } else {
                     panic!("bad venue");
                 }
@@ -776,7 +776,9 @@ impl WowmaxAggregator {
                             &fill.aqua_pool_index, &stage_token, &fill.token_out, fill_in,
                         );
                     } else if fill.venue == 2 {
-                        exec_phoenix_edge(&env, &contract, &fill.pool, &stage_token, fill_in);
+                        exec_phoenix_edge(
+                            &env, &contract, &fill.pool, &stage_token, fill_in, deadline,
+                        );
                     } else {
                         panic!("bad venue");
                     }
@@ -934,6 +936,7 @@ fn exec_phoenix_edge(
     pool: &Address,
     token_in: &Address,
     amount_in: i128,
+    deadline: u64,
 ) {
     if amount_in <= 0 {
         panic!("hop amount must be positive");
@@ -955,18 +958,25 @@ fn exec_phoenix_edge(
             sub_invocations: vec![env],
         }),
     ]);
-    // Phoenix swap has 7 params; pass None for all 4 options (plan-level
-    // guard enforces the minimum on the summed output).
+    // Phoenix swap has 7 params. The per-hop minimum and spread stay None
+    // because the plan-level guard enforces the minimum on the summed
+    // output, but the deadline is passed through: the contract already
+    // checked it, and the venue should not outlive that check either.
     let none_val: Val = ().into_val(env);
+    let deadline_val: Val = if deadline == 0 {
+        none_val
+    } else {
+        Some(deadline).into_val(env)
+    };
     let args: Vec<Val> = vec![
         env,
         contract.into_val(env),
         token_in.into_val(env),
         amount_in.into_val(env),
-        none_val,
-        none_val,
-        none_val,
-        none_val,
+        none_val,     // ask_asset_min_amount
+        none_val,     // max_spread_bps
+        deadline_val, // deadline
+        none_val,     // max_allowed_fee_bps
     ];
     let _reported: i128 = env.invoke_contract(pool, &Symbol::new(env, "swap"), args);
 }
