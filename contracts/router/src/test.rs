@@ -37,11 +37,25 @@ impl MockVenue {
         env.storage().instance().set(&symbol_short!("mode"), &0u32);
     }
 
+    /// The deadline the venue was handed on its most recent swap.
+    pub fn last_deadline(env: Env) -> u64 {
+        env.storage().instance().get(&symbol_short!("lastdl")).unwrap_or(0u64)
+    }
+
     /// Hostile behaviour switch.
     /// 0 = honest, 1 = deliver output but never pull the input,
     /// 2 = pull only part of the authorized input.
     pub fn set_mode(env: Env, mode: u32) {
         env.storage().instance().set(&symbol_short!("mode"), &mode);
+    }
+
+    /// When a swap's declared output equals `trigger_out`, also push
+    /// `side_amount` of `side_token` to the caller out of the venue's own
+    /// balance — a rebate, an extra settlement leg, or plain misbehaviour.
+    pub fn set_side_output(env: Env, trigger_out: Address, side_token: Address, side_amount: i128) {
+        env.storage().instance().set(&symbol_short!("trigout"), &trigger_out);
+        env.storage().instance().set(&symbol_short!("sidetkn"), &side_token);
+        env.storage().instance().set(&symbol_short!("sideamt"), &side_amount);
     }
 
     pub fn swap_exact_tokens_for_tokens(
@@ -50,8 +64,9 @@ impl MockVenue {
         _amount_out_min: i128,
         path: Vec<Address>,
         to: Address,
-        _deadline: u64,
+        deadline: u64,
     ) -> Vec<i128> {
+        env.storage().instance().set(&symbol_short!("lastdl"), &deadline);
         let pool: Address = env.storage().instance().get(&symbol_short!("pool")).unwrap();
         let num: i128 = env.storage().instance().get(&symbol_short!("num")).unwrap();
         let den: i128 = env.storage().instance().get(&symbol_short!("den")).unwrap();
@@ -77,6 +92,16 @@ impl MockVenue {
 
         let delivered = amount_in * num / den;
         token::StellarAssetClient::new(&env, &token_out).mint(&to, &delivered);
+
+        let trigger: Option<Address> = env.storage().instance().get(&symbol_short!("trigout"));
+        if trigger == Some(token_out.clone()) {
+            let side_token: Address =
+                env.storage().instance().get(&symbol_short!("sidetkn")).unwrap();
+            let side_amount: i128 =
+                env.storage().instance().get(&symbol_short!("sideamt")).unwrap();
+            let me = env.current_contract_address();
+            token::Client::new(&env, &side_token).transfer(&me, &to, &side_amount);
+        }
 
         vec![&env, amount_in, delivered + bonus]
     }
@@ -501,6 +526,73 @@ fn no_funds_retained_after_swap() {
     );
     assert_eq!(token::Client::new(&f.env, &f.token_a).balance(&contract_addr), 0);
     assert_eq!(token::Client::new(&f.env, &f.token_b).balance(&contract_addr), 0);
+}
+
+/// M-01 regression: a venue that pushes extra final token_out during an
+/// earlier stage must not have that output locked in the contract. The
+/// user is entitled to everything the call gained.
+#[test]
+fn merge_forwards_all_final_token_out_gained_this_call() {
+    let f = setup(1, 1, 0);
+    let token_c = env_token(&f.env);
+    let contract_addr = f.client.address.clone();
+
+    // A second venue that side-transfers 7 C while fulfilling A -> B.
+    let side_pool = Address::generate(&f.env);
+    let side_venue = f.env.register(MockVenue, ());
+    MockVenueClient::new(&f.env, &side_venue).init(&side_pool, &1i128, &1i128, &0i128);
+    token::StellarAssetClient::new(&f.env, &token_c).mint(&side_venue, &7i128);
+    MockVenueClient::new(&f.env, &side_venue).set_side_output(&f.token_b, &token_c, &7i128);
+
+    let stages = vec![
+        &f.env,
+        Stage {
+            token: f.token_a.clone(),
+            fills: vec![
+                &f.env,
+                fill(&f.env, &side_venue, &side_pool, &f.token_a, &f.token_b, 1),
+            ],
+        },
+        Stage {
+            token: f.token_b.clone(),
+            fills: vec![&f.env, fill(&f.env, &f.venue, &f.pool, &f.token_b, &token_c, 1)],
+        },
+    ];
+
+    let out = f.client.swap_merge(
+        &f.user, &f.token_a, &token_c, &1_000i128, &1_000i128, &2_000_000u64, &stages,
+    );
+
+    assert_eq!(out, 1_007, "the side-delivered output belongs to the caller");
+    assert_eq!(token::Client::new(&f.env, &token_c).balance(&f.user), 1_007);
+    assert_eq!(
+        token::Client::new(&f.env, &token_c).balance(&contract_addr),
+        0,
+        "nothing may be left stranded in an immutable contract"
+    );
+}
+
+/// F-8 regression: `deadline == 0` means "no deadline" to this contract,
+/// but a venue that compares the value against the ledger timestamp would
+/// read a bare zero as a 1970 deadline. It must reach the venue as an
+/// effectively unlimited value, not as zero.
+#[test]
+fn zero_deadline_does_not_reach_the_venue_as_zero() {
+    let f = setup(1, 1, 0);
+    let plan = vec![
+        &f.env,
+        strand(1, vec![&f.env, hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b)]),
+    ];
+    // The mock records the deadline it was handed.
+    let out = f.client.swap(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &0u64, &plan,
+    );
+    assert_eq!(out, 1_000);
+    assert_eq!(
+        MockVenueClient::new(&f.env, &f.venue).last_deadline(),
+        u64::MAX,
+        "zero must be translated for the venue, not forwarded verbatim"
+    );
 }
 
 fn env_token(env: &Env) -> Address {

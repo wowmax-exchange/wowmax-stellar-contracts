@@ -71,6 +71,20 @@ pub struct Stage {
 #[cfg(test)]
 mod test;
 
+/// Our convention is that `deadline == 0` means "no deadline", and the
+/// contract simply skips its own check. Soroswap has no such convention:
+/// it compares the value against the ledger timestamp, so a zero reads as
+/// a 1970 deadline and the venue rejects the swap. Translate zero into the
+/// furthest representable point instead. Phoenix takes an Option and gets
+/// None for the same case.
+fn venue_deadline(deadline: u64) -> u64 {
+    if deadline == 0 {
+        u64::MAX
+    } else {
+        deadline
+    }
+}
+
 /// Reject non-positive input and negative minimums before any cast or
 /// transfer. `amount_in as u128` on a negative i128 wraps to a huge u128
 /// (an `as` cast is not covered by overflow-checks), so this guard is the
@@ -166,7 +180,7 @@ impl WowmaxAggregator {
             amount_out_min.into_val(&env),
             path.into_val(&env),
             contract.into_val(&env),
-            deadline.into_val(&env),
+            venue_deadline(deadline).into_val(&env),
         ];
         let amounts: Vec<i128> = env.invoke_contract(
             &soroswap_router,
@@ -517,7 +531,7 @@ impl WowmaxAggregator {
             0i128.into_val(&env),
             soroswap_path.into_val(&env),
             contract.into_val(&env),
-            deadline.into_val(&env),
+            venue_deadline(deadline).into_val(&env),
         ];
         let amounts: Vec<i128> = env.invoke_contract(
             &soroswap_router,
@@ -813,21 +827,33 @@ impl WowmaxAggregator {
             ki += 1;
         }
 
-        let total_out: i128 = avail.get(token_out.clone()).unwrap_or(0);
-        if total_out <= 0 {
-            panic!("no output");
-        }
-        if total_out < amount_out_min {
-            panic!("amount_out_min not met");
-        }
-        // Cross-check against the contract's own books before paying out.
+        // Pay out the token_out the contract ACTUALLY gained during this
+        // call, not merely the amount the availability map accounted for.
+        // A venue may deliver token_out outside a fill's declared
+        // destination — a rebate, a settlement transfer, or simple
+        // misbehaviour — and that delta belongs to this caller. Paying the
+        // tracked figure instead would leave the difference in an
+        // immutable contract with no way to ever recover it.
+        //
+        // This cannot reach a pre-existing balance: out_before is sampled
+        // before the input is pulled, so the delta covers only value that
+        // arrived during this call. The tracked figure is kept as a
+        // lower-bound consistency check on the accounting.
+        let tracked_out: i128 = avail.get(token_out.clone()).unwrap_or(0);
         let out_after: i128 = token::Client::new(&env, &token_out).balance(&contract);
-        if out_after - out_before < total_out {
+        let actual_out: i128 = out_after - out_before;
+        if actual_out < tracked_out {
             panic!("accounting mismatch");
         }
+        if actual_out <= 0 {
+            panic!("no output");
+        }
+        if actual_out < amount_out_min {
+            panic!("amount_out_min not met");
+        }
 
-        token::Client::new(&env, &token_out).transfer(&contract, &user, &total_out);
-        total_out
+        token::Client::new(&env, &token_out).transfer(&contract, &user, &actual_out);
+        actual_out
     }
 }
 
@@ -872,7 +898,7 @@ fn exec_soroswap_edge(
         0i128.into_val(env),
         path.into_val(env),
         contract.into_val(env),
-        deadline.into_val(env),
+        venue_deadline(deadline).into_val(env),
     ];
     let amounts: Vec<i128> =
         env.invoke_contract(router, &Symbol::new(env, "swap_exact_tokens_for_tokens"), args);
