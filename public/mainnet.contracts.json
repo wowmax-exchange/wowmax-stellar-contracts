@@ -4,10 +4,10 @@
   "contracts": {
     "executor": {
       "name": "wowmax-stellar-router",
-      "description": "On-chain swap-plan executor: atomic split + multi-hop + cross-protocol across Soroswap, Aquarius, Phoenix, plus swap_merge, which executes the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). Output is measured as the contract's own token_out balance delta on every entry point, hop-to-hop token continuity is validated, and amount_out_min is enforced on the summed output. The contract has no admin and no upgrade path. Merge execution tracks per-call token provenance: only the input pulled in this call and the output measured from each fill may be spent, so balances held at the address are invisible to a plan. Every venue invocation must consume exactly the amount it was handed. The merge payout is the token_out balance delta gained during the call, so nothing the call produced is left behind. A zero deadline is translated for venues that compare it against the ledger timestamp.",
-      "address": "CCLOEJI44XFNE5OLJCP3G5QH2TVPHUW47AYRFUYVRJRVSVMS3IQASAZU",
-      "wasmSha256": "8459f968cb6a950761ba3917dd141a1861f5f478ebf1c50b7aab287ffb939173",
-      "sourceCommit": "fc86d11",
+      "description": "On-chain swap-plan executor: atomic split + multi-hop + cross-protocol across Soroswap, Aquarius, Phoenix, plus swap_merge, which executes the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). Output is measured as the contract's own token_out balance delta on every entry point, hop-to-hop token continuity is validated, and amount_out_min is enforced on the summed output. The contract has no admin and no upgrade path. Merge execution tracks per-call token provenance: only the input pulled in this call and the output measured from each fill may be spent, so balances held at the address are invisible to a plan. Every venue invocation must consume exactly the amount it was handed. The merge payout is the token_out balance delta gained during the call, so nothing the call produced is left behind. A zero deadline is translated for venues that compare it against the ledger timestamp. Untrusted venue routing data (soroswap_path, aqua_pool_tokens) is validated against each hop's declared tokens before the venue is called.",
+      "address": "CBMPYAEOGQUJ3LVMFXPN3X4GVNPPEI6FVG6YC7HYBYSN26KODOLUSNPF",
+      "wasmSha256": "095ee35248f9076fb76d26d7d97e1308c35586df364ff0442b664c5fb3718883",
+      "sourceCommit": "8252993",
       "entrypoints": [
         "swap",
         "swap_soroswap",
@@ -20,6 +20,11 @@
     }
   },
   "superseded": [
+    {
+      "role": "executor",
+      "address": "CCLOEJI44XFNE5OLJCP3G5QH2TVPHUW47AYRFUYVRJRVSVMS3IQASAZU",
+      "note": "Superseded by CBMPYAEO, which adds venue path/pool-token endpoint validation, rejects zero-weight merge fills, and carries an authorization-enforcement test group."
+    },
     {
       "role": "executor",
       "address": "CAZ3F6BPYHZ6QDXFXZUKL2CDQDWZPVFCZSE5SJDKULZCA7IFWPPMB72K",
