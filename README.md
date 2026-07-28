@@ -90,8 +90,8 @@ All functions are validated on **Stellar mainnet** against live pools. See
 transaction list with explorer links.
 
 Deployed contract (mainnet):
-[`CBLMXS6UHI6Y7QO4ZEO5H2R4SAMTSE2VPX3IP4VZREWNSBHQYQFAZOPX`](https://stellar.expert/explorer/public/contract/CBLMXS6UHI6Y7QO4ZEO5H2R4SAMTSE2VPX3IP4VZREWNSBHQYQFAZOPX),
-wasm sha256 `3bc4be82c8e8a738e947ecf416af63dfd4a9b462b9cfa5a9324a0b30aeb49276`.
+[`CBMPYAEOGQUJ3LVMFXPN3X4GVNPPEI6FVG6YC7HYBYSN26KODOLUSNPF`](https://stellar.expert/explorer/public/contract/CBMPYAEOGQUJ3LVMFXPN3X4GVNPPEI6FVG6YC7HYBYSN26KODOLUSNPF),
+wasm sha256 `095ee35248f9076fb76d26d7d97e1308c35586df364ff0442b664c5fb3718883`.
 A single deployment now carries every entry point including `swap_merge`;
 the two contracts it replaces are recorded under `superseded` in
 [`public/mainnet.contracts.json`](./public/mainnet.contracts.json). The
