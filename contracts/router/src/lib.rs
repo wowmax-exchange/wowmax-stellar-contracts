@@ -121,6 +121,36 @@ fn require_consumed(env: &Env, token: &Address, contract: &Address, before: i128
     }
 }
 
+/// A hop's `soroswap_path` and `aqua_pool_tokens` are untrusted plan data.
+/// The pre-authorized transfer already pins which token, and how much, the
+/// venue may pull, so a wrong path cannot move unpaid funds — but it could
+/// send the venue down a route whose endpoints disagree with what this hop
+/// claims to swap. Pin both endpoints (and, for Soroswap, the exact
+/// two-token shape the off-chain planner always emits) so the plan cannot
+/// desync the venue call from the accounting around it.
+fn require_soroswap_path(path: &Vec<Address>, token_in: &Address, token_out: &Address) {
+    if path.len() != 2 {
+        panic!("soroswap path must be [token_in, token_out]");
+    }
+    if path.get(0).unwrap() != token_in.clone() || path.get(1).unwrap() != token_out.clone() {
+        panic!("soroswap path endpoints mismatch");
+    }
+}
+
+fn require_aqua_tokens(tokens: &Vec<Address>, token_in: &Address, token_out: &Address) {
+    if tokens.len() != 2 {
+        panic!("aqua pool must have exactly two tokens");
+    }
+    let a = tokens.get(0).unwrap();
+    let b = tokens.get(1).unwrap();
+    let ti = token_in.clone();
+    let to = token_out.clone();
+    // Order is pool-defined, so accept either arrangement of the pair.
+    if !((a == ti && b == to) || (a == to && b == ti)) {
+        panic!("aqua pool tokens do not match the hop");
+    }
+}
+
 fn require_distinct(token_in: &Address, token_out: &Address) {
     if token_in == token_out {
         panic!("token_in equals token_out");
@@ -654,7 +684,7 @@ impl WowmaxAggregator {
                 if hop.venue == 0 {
                     exec_soroswap_edge(
                         &env, &contract, &hop.soroswap_router, &hop.pool, &hop.token_in,
-                        hop_in, &hop.soroswap_path, deadline,
+                        &hop.token_out, hop_in, &hop.soroswap_path, deadline,
                     );
                 } else if hop.venue == 1 {
                     exec_aqua_edge(
@@ -774,7 +804,14 @@ impl WowmaxAggregator {
                 if fill.token_out == stage_token {
                     panic!("degenerate fill");
                 }
-                if fill_in > 0 {
+                // A fill that receives nothing is a malformed plan (a
+                // zero-weight branch, or a split too fine for the pooled
+                // amount), not a no-op to skip silently. `swap` already
+                // rejects the equivalent hop; do the same here.
+                if fill_in <= 0 {
+                    panic!("fill amount must be positive");
+                }
+                {
                     let src_before: i128 =
                         token::Client::new(&env, &stage_token).balance(&contract);
                     let dst_before: i128 =
@@ -782,7 +819,7 @@ impl WowmaxAggregator {
                     if fill.venue == 0 {
                         exec_soroswap_edge(
                             &env, &contract, &fill.soroswap_router, &fill.pool,
-                            &stage_token, fill_in, &fill.soroswap_path, deadline,
+                            &stage_token, &fill.token_out, fill_in, &fill.soroswap_path, deadline,
                         );
                     } else if fill.venue == 1 {
                         exec_aqua_edge(
@@ -868,6 +905,7 @@ fn exec_soroswap_edge(
     router: &Address,
     pool: &Address,
     token_in: &Address,
+    token_out: &Address,
     amount_in: i128,
     path: &Vec<Address>,
     deadline: u64,
@@ -875,6 +913,7 @@ fn exec_soroswap_edge(
     if amount_in <= 0 {
         panic!("hop amount must be positive");
     }
+    require_soroswap_path(path, token_in, token_out);
     let transfer_args: Vec<Val> = vec![
         env,
         contract.into_val(env),
@@ -920,6 +959,7 @@ fn exec_aqua_edge(
     if amount_in <= 0 {
         panic!("hop amount must be positive");
     }
+    require_aqua_tokens(pool_tokens, token_in, token_out);
     let transfer_args: Vec<Val> = vec![
         env,
         contract.into_val(env),

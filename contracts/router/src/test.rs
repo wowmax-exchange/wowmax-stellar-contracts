@@ -595,7 +595,253 @@ fn zero_deadline_does_not_reach_the_venue_as_zero() {
     );
 }
 
+/// Finding B: soroswap_path is untrusted. A path whose length or endpoints
+/// disagree with the hop must be rejected, not forwarded to the venue.
+#[test]
+#[should_panic(expected = "soroswap path")]
+fn soroswap_path_wrong_length_reverts() {
+    let f = setup(1, 1, 0);
+    let mut h = hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b);
+    // three-element path: not the [in, out] shape the planner emits
+    h.soroswap_path = vec![&f.env, f.token_a.clone(), f.token_b.clone(), f.token_a.clone()];
+    let plan = vec![&f.env, strand(1, vec![&f.env, h])];
+    f.client.swap(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &2_000_000u64, &plan,
+    );
+}
+
+#[test]
+#[should_panic(expected = "soroswap path endpoints mismatch")]
+fn soroswap_path_wrong_endpoints_reverts() {
+    let f = setup(1, 1, 0);
+    let token_c = env_token(&f.env);
+    let mut h = hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b);
+    // right length, wrong second endpoint
+    h.soroswap_path = vec![&f.env, f.token_a.clone(), token_c];
+    let plan = vec![&f.env, strand(1, vec![&f.env, h])];
+    f.client.swap(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &2_000_000u64, &plan,
+    );
+}
+
+/// Finding S-2: a zero-weight fill in a merge stage is a malformed plan and
+/// must revert rather than being silently skipped.
+#[test]
+#[should_panic(expected = "fill amount must be positive")]
+fn merge_zero_weight_fill_reverts() {
+    let f = setup(1, 1, 0);
+    let token_c = env_token(&f.env);
+    let stages = vec![
+        &f.env,
+        Stage {
+            token: f.token_a.clone(),
+            fills: vec![
+                &f.env,
+                fill(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b, 1),
+                // zero-weight non-final fill: gets fill_in == 0
+                fill(&f.env, &f.venue, &f.pool, &f.token_a, &token_c, 0),
+            ],
+        },
+        Stage {
+            token: f.token_b.clone(),
+            fills: vec![&f.env, fill(&f.env, &f.venue, &f.pool, &f.token_b, &token_c, 1)],
+        },
+    ];
+    f.client.swap_merge(
+        &f.user, &f.token_a, &token_c, &1_000i128, &1i128, &2_000_000u64, &stages,
+    );
+}
+
 fn env_token(env: &Env) -> Address {
     let admin = Address::generate(env);
     env.register_stellar_asset_contract_v2(admin).address()
+}
+
+
+// ==================== authorization enforcement tests ====================
+//
+// The suite above runs under `mock_all_auths_allowing_non_root_auth`,
+// needed because the primary mock MINTS its output (an admin call deep in
+// the stack). That relaxation also stops the harness from exercising the
+// `authorize_as_current_contract` subtree the contract builds before every
+// venue call.
+//
+// These tests use plain `mock_all_auths()`, which does NOT relax
+// authorize_as_current_contract, together with a venue that pays its output
+// from a PRE-FUNDED balance (no mint, no nested admin auth). That lets the
+// contract's pre-authorized transfer be the thing under test. The venue can
+// be told to abuse it: pull to a different address, pull more than
+// authorized, or pull twice. Each abuse must be rejected by the host
+// because the authorization is scoped to one exact (token, from, to,
+// amount) tuple.
+
+#[contract]
+pub struct AuthMockVenue;
+
+#[contractimpl]
+impl AuthMockVenue {
+    // abuse: 0 = honest, 1 = pull to a rogue address, 2 = pull amount+1,
+    // 3 = pull the authorized amount twice.
+    pub fn init(env: Env, pool: Address, out_token: Address, out_amount: i128, rogue: Address) {
+        env.storage().instance().set(&symbol_short!("pool"), &pool);
+        env.storage().instance().set(&symbol_short!("otok"), &out_token);
+        env.storage().instance().set(&symbol_short!("oamt"), &out_amount);
+        env.storage().instance().set(&symbol_short!("rogue"), &rogue);
+        env.storage().instance().set(&symbol_short!("abuse"), &0u32);
+    }
+
+    pub fn set_abuse(env: Env, abuse: u32) {
+        env.storage().instance().set(&symbol_short!("abuse"), &abuse);
+    }
+
+    pub fn swap_exact_tokens_for_tokens(
+        env: Env,
+        amount_in: i128,
+        _amount_out_min: i128,
+        _path: Vec<Address>,
+        to: Address,
+        _deadline: u64,
+    ) -> Vec<i128> {
+        let pool: Address = env.storage().instance().get(&symbol_short!("pool")).unwrap();
+        let otok: Address = env.storage().instance().get(&symbol_short!("otok")).unwrap();
+        let oamt: i128 = env.storage().instance().get(&symbol_short!("oamt")).unwrap();
+        let rogue: Address = env.storage().instance().get(&symbol_short!("rogue")).unwrap();
+        let abuse: u32 = env.storage().instance().get(&symbol_short!("abuse")).unwrap_or(0);
+
+        let token_in = _path.get(0).unwrap();
+
+        // Honest path: pull exactly what was authorized into the pool.
+        if abuse == 0 {
+            token::Client::new(&env, &token_in).transfer(&to, &pool, &amount_in);
+        } else if abuse == 1 {
+            // pull to a rogue recipient instead of the authorized pool
+            token::Client::new(&env, &token_in).transfer(&to, &rogue, &amount_in);
+        } else if abuse == 2 {
+            // pull one more than authorized
+            token::Client::new(&env, &token_in).transfer(&to, &pool, &(amount_in + 1));
+        } else if abuse == 3 {
+            // consume the authorization twice
+            token::Client::new(&env, &token_in).transfer(&to, &pool, &amount_in);
+            token::Client::new(&env, &token_in).transfer(&to, &pool, &amount_in);
+        }
+
+        // Pay output from the venue's own pre-funded balance (no mint).
+        let me = env.current_contract_address();
+        token::Client::new(&env, &otok).transfer(&me, &to, &oamt);
+        vec![&env, amount_in, oamt]
+    }
+}
+
+struct AuthFixture {
+    env: Env,
+    client: WowmaxAggregatorClient<'static>,
+    user: Address,
+    token_a: Address,
+    token_b: Address,
+    venue: Address,
+    pool: Address,
+}
+
+fn auth_setup() -> AuthFixture {
+    let env = Env::default();
+    env.mock_all_auths(); // strict: does NOT relax authorize_as_current_contract
+    env.ledger().set_timestamp(1_000_000);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let pool = Address::generate(&env);
+    let rogue = Address::generate(&env);
+
+    let token_a = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_b = env.register_stellar_asset_contract_v2(admin.clone()).address();
+
+    let venue = env.register(AuthMockVenue, ());
+    let contract_id = env.register(WowmaxAggregator, ());
+    let client = WowmaxAggregatorClient::new(&env, &contract_id);
+
+    // user funds the input; venue is pre-funded with the output token so it
+    // never needs to mint (which would require nested admin auth).
+    token::StellarAssetClient::new(&env, &token_a).mint(&user, &1_000_000i128);
+    token::StellarAssetClient::new(&env, &token_b).mint(&venue, &1_000_000i128);
+
+    AuthMockVenueClient::new(&env, &venue).init(&pool, &token_b, &2_000i128, &rogue);
+
+    AuthFixture { env, client, user, token_a, token_b, venue, pool }
+}
+
+fn auth_hop(env: &Env, venue: &Address, pool: &Address, ti: &Address, to: &Address) -> Hop {
+    Hop {
+        venue: 0,
+        pool: pool.clone(),
+        token_in: ti.clone(),
+        token_out: to.clone(),
+        aqua_router: venue.clone(),
+        aqua_pool_tokens: vec![env],
+        aqua_pool_index: BytesN::from_array(env, &[0u8; 32]),
+        soroswap_router: venue.clone(),
+        soroswap_path: vec![env, ti.clone(), to.clone()],
+    }
+}
+
+/// Baseline: with the pre-authorized transfer honoured exactly, the swap
+/// succeeds. This proves the auth subtree the contract builds is itself
+/// valid, not merely that abuse fails.
+#[test]
+fn auth_honest_swap_succeeds() {
+    let f = auth_setup();
+    let plan = vec![
+        &f.env,
+        Strand { parts: 1, hops: vec![&f.env, auth_hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b)] },
+    ];
+    let out = f.client.swap(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &2_000_000u64, &plan,
+    );
+    assert_eq!(out, 2_000);
+}
+
+/// The pre-authorization names the pool as recipient. A venue that pulls to
+/// a different address is exercising an authorization it was not granted.
+#[test]
+#[should_panic]
+fn auth_pull_to_rogue_recipient_reverts() {
+    let f = auth_setup();
+    AuthMockVenueClient::new(&f.env, &f.venue).set_abuse(&1u32);
+    let plan = vec![
+        &f.env,
+        Strand { parts: 1, hops: vec![&f.env, auth_hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b)] },
+    ];
+    f.client.swap(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &2_000_000u64, &plan,
+    );
+}
+
+/// The authorization pins the amount. Pulling amount+1 must fail.
+#[test]
+#[should_panic]
+fn auth_pull_more_than_authorized_reverts() {
+    let f = auth_setup();
+    AuthMockVenueClient::new(&f.env, &f.venue).set_abuse(&2u32);
+    let plan = vec![
+        &f.env,
+        Strand { parts: 1, hops: vec![&f.env, auth_hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b)] },
+    ];
+    f.client.swap(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &2_000_000u64, &plan,
+    );
+}
+
+/// A single authorization cannot be replayed: pulling the authorized amount
+/// twice must fail (and require_consumed would catch the doubled delta too).
+#[test]
+#[should_panic]
+fn auth_replay_transfer_reverts() {
+    let f = auth_setup();
+    AuthMockVenueClient::new(&f.env, &f.venue).set_abuse(&3u32);
+    let plan = vec![
+        &f.env,
+        Strand { parts: 1, hops: vec![&f.env, auth_hop(&f.env, &f.venue, &f.pool, &f.token_a, &f.token_b)] },
+    ];
+    f.client.swap(
+        &f.user, &f.token_a, &f.token_b, &1_000i128, &1i128, &2_000_000u64, &plan,
+    );
 }
