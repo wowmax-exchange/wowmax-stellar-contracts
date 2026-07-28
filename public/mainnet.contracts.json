@@ -4,10 +4,10 @@
   "contracts": {
     "executor": {
       "name": "wowmax-stellar-router",
-      "description": "On-chain swap-plan executor: atomic split + multi-hop + cross-protocol across Soroswap, Aquarius, Phoenix, plus swap_merge, which executes the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). Output is measured as the contract's own token_out balance delta on every entry point, hop-to-hop token continuity is validated, and amount_out_min is enforced on the summed output. The contract has no admin and no upgrade path. Merge execution tracks per-call token provenance: only the input pulled in this call and the output measured from each fill may be spent, so balances held at the address are invisible to a plan. Every venue invocation must consume exactly the amount it was handed.",
-      "address": "CAZ3F6BPYHZ6QDXFXZUKL2CDQDWZPVFCZSE5SJDKULZCA7IFWPPMB72K",
-      "wasmSha256": "77e26e62a0b91dc35e51677d51eb8c94a4ca8637312253689faed81a18f35a33",
-      "sourceCommit": "3474942",
+      "description": "On-chain swap-plan executor: atomic split + multi-hop + cross-protocol across Soroswap, Aquarius, Phoenix, plus swap_merge, which executes the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). Output is measured as the contract's own token_out balance delta on every entry point, hop-to-hop token continuity is validated, and amount_out_min is enforced on the summed output. The contract has no admin and no upgrade path. Merge execution tracks per-call token provenance: only the input pulled in this call and the output measured from each fill may be spent, so balances held at the address are invisible to a plan. Every venue invocation must consume exactly the amount it was handed. The merge payout is the token_out balance delta gained during the call, so nothing the call produced is left behind. A zero deadline is translated for venues that compare it against the ledger timestamp.",
+      "address": "CCLOEJI44XFNE5OLJCP3G5QH2TVPHUW47AYRFUYVRJRVSVMS3IQASAZU",
+      "wasmSha256": "8459f968cb6a950761ba3917dd141a1861f5f478ebf1c50b7aab287ffb939173",
+      "sourceCommit": "fc86d11",
       "entrypoints": [
         "swap",
         "swap_soroswap",
@@ -16,10 +16,15 @@
         "swap_aqua_then_soroswap",
         "swap_merge"
       ],
-      "note": "Tokens sent to this address outside a swap cannot be recovered: the contract has no admin function and no plan can reach a balance it did not create."
+      "note": "Immutable: no admin function and no upgrade path. Tokens sent to this address outside a swap, or unsolicited tokens side-transferred by a venue in an asset the route did not declare, cannot be recovered by anyone."
     }
   },
   "superseded": [
+    {
+      "role": "executor",
+      "address": "CAZ3F6BPYHZ6QDXFXZUKL2CDQDWZPVFCZSE5SJDKULZCA7IFWPPMB72K",
+      "note": "Superseded by CCLOEJI4. Its swap_merge derived the payout from internal accounting and checked the physical balance delta only as a lower bound, so token_out delivered outside a fill's declared destination would have been left in the contract permanently."
+    },
     {
       "role": "executor",
       "address": "CBLMXS6UHI6Y7QO4ZEO5H2R4SAMTSE2VPX3IP4VZREWNSBHQYQFAZOPX",
