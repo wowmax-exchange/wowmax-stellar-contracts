@@ -18,10 +18,18 @@ real case.
 |----------------------|--------------------------------|-------|----------------------------------|
 | Stellar router v2    | routing host, systemd `wowmax-stellar-router` | 8083 (localhost) | `GET /healthz` |
 | bridge-aggregator    | routing host, node process     | 8085 (localhost) | `GET /health`                    |
+| Caddy (public edge of the routing host) | routing host, systemd `caddy` | 443 | serves `stellar-router.wowmax.exchange` |
 | api-gateway          | k8s cluster (public)           | 443   | `GET /docs`, `GET /chains/100000148/quote?...` |
 | VictoriaMetrics      | routing host, docker `vmstellar` | 8428 (localhost, basic auth) | `GET /health` |
 | stellar-prober       | routing host, systemd `stellar-prober` | 9105 (localhost) | `GET /metrics` |
 | Grafana              | internal monitoring stack      | 443   | dashboards `Stellar Router & DEX Venues`, `Stellar Bridges` |
+
+Public exposure of the routing host: Caddy terminates TLS for
+`stellar-router.wowmax.exchange` and path-splits it — `/bridge/*` goes to the
+bridge-aggregator (:8085), everything else to the router v2 (:8083). This is
+also how the k8s api-gateway reaches both services (its `BRIDGE_AGGREGATOR_URL`
+and `STELLAR_ROUTER_URL` point at this hostname), so a Caddy outage breaks the
+public gateway path while both local services stay healthy — see Scenario 7.
 
 Data flow: `stellar-prober` probes the router (`/healthz`, `/quote`,
 `/rpcpool-stats`), the bridge aggregator (`/health`, `POST /bridge/quote`) and
@@ -222,9 +230,9 @@ flag, document here, and open a channel with the provider.
 ### Scenario 7 — Public gateway e2e down (r6, critical)
 
 **Symptoms.** r6 fires while the router itself is healthy (r1 silent): the
-public path `Cloudflare → k8s api-gateway → router` is broken somewhere in the
-middle. `Swagger /docs` stat may drop with it (gateway-wide) or stay green
-(route-specific).
+public path `Cloudflare → k8s api-gateway → Caddy (routing host) → router` is
+broken somewhere in the middle. `Swagger /docs` stat may drop with it
+(gateway-wide) or stay green (route-specific).
 
 **Diagnose, outside-in.**
 
@@ -235,11 +243,21 @@ curl -sS -m 15 -o /dev/null -w '/docs: %{http_code}\n' https://api-gateway.wowma
 curl -sS -m 5  -o /dev/null -w 'router direct: %{http_code}\n' 'http://127.0.0.1:8083/chains/100000148/quote?from=XLM&to=USDC&amount=100'
 ```
 
-* Public 5xx/timeout + router direct 200 → gateway pod or Cloudflare edge:
-  check the k8s deployment (pod restarts, resource limits) via the K8s
-  dashboards; check Cloudflare status.
+* Public 5xx/timeout + router direct 200 → three suspects between the edge and
+  the router: the gateway pod (k8s dashboards: restarts, resource limits),
+  Cloudflare, or Caddy on the routing host. Check Caddy first — it is the hop
+  both `STELLAR_ROUTER_URL` and `BRIDGE_AGGREGATOR_URL` go through:
+
+```bash
+systemctl status caddy --no-pager
+curl -sS -m 8 -o /dev/null -w 'via caddy: %{http_code}\n' https://stellar-router.wowmax.exchange/healthz
+tail -20 /var/log/caddy/wowmax-stellar-router-access.log
+```
+
 * `/docs` down too → the whole gateway pod is unhealthy → k8s restart.
 * Router direct also failing → this is Scenario 1, handle there.
+* Caddy down → `systemctl restart caddy`; certificates renew automatically, no
+  state to lose.
 
 **Mitigate.** Restart the gateway deployment in k8s; the router side needs no
 action. Escalate to the infrastructure owner if the cluster itself is the
@@ -281,6 +299,11 @@ anything missed.
 
 ## 5. Change log
 
+* 2026-08-02 (later) — System map corrected: Caddy on the routing host
+  publicly serves `stellar-router.wowmax.exchange` with a path split
+  (`/bridge/*` → bridge-aggregator :8085, rest → router :8083); the k8s
+  gateway consumes both services through it. Scenario 7 extended with the
+  Caddy hop.
 * 2026-08-02 — Runbook created. Alert set r1–r8 provisioned and live-tested
   (r7 fired on a real p95 breach; r8 tested via controlled prober stop; a real
   Near Intents liquidity transient and the Allbridge Stellar deprecation were
