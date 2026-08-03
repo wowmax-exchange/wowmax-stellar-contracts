@@ -20,7 +20,8 @@ Built under Stellar Community Fund Build Award #43.
 | [Contribution model](CONTRIBUTING.md) | Adding a DEX venue or a bridge adapter, code and security expectations |
 | [Operations runbook](RUNBOOK.md) | Production monitoring, alerting, incident scenarios |
 | [Latency benchmark](D10-LATENCY.md) | Public p50/p95/p99 measurements of the live API |
-| [D1 engine report](D1-REPORT.md) | The original routing-engine deliverable report |
+| [D1 engine report](REPORT.md) | The original routing-engine deliverable report |
+| [D4 health report](D4-REPORT.md) | Protocol health monitoring deliverable report |
 
 ## Live surfaces
 
