@@ -16,7 +16,7 @@ Built under Stellar Community Fund Build Award #43.
 | [Architecture](ARCHITECTURE.md) | Components, data flow, execution model, non-custodial guarantees |
 | [Routing logic](ROUTING.md) | How a quote is computed: two execution layers, winner selection, price guards |
 | [User guide](USER-GUIDE.md) | Swapping and bridging in the WOWMAX app, step by step |
-| [Developer integration](INTEGRATION.md) | REST + TypeScript SDK quickstart — first quote in minutes, testnet swap under 15 |
+| [Developer integration](INTEGRATION.md) | REST + TypeScript SDK quickstart — first quote in ~3 minutes, full non-custodial cycle under 15 |
 | [Contribution model](CONTRIBUTING.md) | Adding a DEX venue or a bridge adapter, code and security expectations |
 | [Operations runbook](RUNBOOK.md) | Production monitoring, alerting, incident scenarios |
 | [Latency benchmark](D10-LATENCY.md) | Public p50/p95/p99 measurements of the live API |

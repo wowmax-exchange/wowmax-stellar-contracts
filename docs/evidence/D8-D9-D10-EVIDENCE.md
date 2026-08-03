@@ -80,8 +80,7 @@ https://github.com/wowswap-io/wowmax-stellar-contracts/tree/master/docs
   joins the ranking and the monitoring matrix
 
 GitHub Pages URL once enabled (Settings → Pages → master + /docs):
-`https://wowswap-io.github.io/wowmax-stellar-contracts/` → [FILL after
-verification].
+https://wowswap-io.github.io/wowmax-stellar-contracts/ — live, verified 2026-08-03.
 
 **Criterion: Developer quickstart under 15 minutes — DONE.**
 
