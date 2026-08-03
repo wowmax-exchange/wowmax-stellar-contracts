@@ -14,10 +14,12 @@ scope):
 
 * Router & DEX venues (SDEX, Soroswap, Phoenix, Aquarius — per-venue health,
   quote success, winner mode, latency p50/p95, RPC-pool internals):
-  https://grafana.wowswap.io/public-dashboards/ec1ed488b13843e1a11c1e0346864bd3
+  https://grafana.wowmax.exchange/public-dashboards/ec1ed488b13843e1a11c1e0346864bd3
 * Bridges (Near Intents, Allbridge, Axelar, Squid + composite routes —
   per-bridge availability per pair, winner, net USD, ETA, fan-out latency):
-  https://grafana.wowswap.io/public-dashboards/9132626551e94f5b8af0ba54ff0e1946
+  https://grafana.wowmax.exchange/public-dashboards/9132626551e94f5b8af0ba54ff0e1946
+
+Branded landing with both dashboards: https://grafana.wowmax.exchange
 
 Backing infrastructure: synthetic prober (systemd service) exercising real
 quotes across every venue and bridge on a 90/180/120-second cadence, exposing

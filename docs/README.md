@@ -28,6 +28,7 @@ Built under Stellar Community Fund Build Award #43.
 | Surface | URL |
 | --- | --- |
 | Swap app | https://app.wowmax.exchange |
+| Live monitoring (public dashboards) | https://grafana.wowmax.exchange |
 | Public API (Swagger) | https://api-gateway.wowmax.exchange/docs |
 | OpenAPI JSON | https://api-gateway.wowmax.exchange/docs-json |
 | TypeScript SDK | https://www.npmjs.com/package/@wowmax/sdk |

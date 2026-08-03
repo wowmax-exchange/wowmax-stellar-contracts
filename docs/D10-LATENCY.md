@@ -30,7 +30,8 @@ the UI uses the fast Near-only first pass for instant display.
 ## Continuous measurement
 
 The same paths are measured continuously in production by the Stellar
-monitoring prober (Prometheus histograms, p50/p95 panels on the internal
-Grafana `Stellar` dashboards, alert on p95 degradation). This benchmark is
+monitoring prober (Prometheus histograms, p50/p95 panels on the Grafana
+`Stellar` dashboards — public read-only view: https://grafana.wowmax.exchange —
+alert on p95 degradation). This benchmark is
 the point-in-time public snapshot; the histograms are the live view.
 

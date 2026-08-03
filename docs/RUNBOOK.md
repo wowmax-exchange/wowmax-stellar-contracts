@@ -22,7 +22,7 @@ real case.
 | api-gateway          | k8s cluster (public)           | 443   | `GET /docs`, `GET /chains/100000148/quote?...` |
 | VictoriaMetrics      | routing host, docker `vmstellar` | 8428 (localhost, basic auth) | `GET /health` |
 | stellar-prober       | routing host, systemd `stellar-prober` | 9105 (localhost) | `GET /metrics` |
-| Grafana              | internal monitoring stack      | 443   | dashboards `Stellar Router & DEX Venues`, `Stellar Bridges` |
+| Grafana              | internal monitoring stack      | 443   | dashboards `Stellar Router & DEX Venues`, `Stellar Bridges`; public read-only: https://grafana.wowmax.exchange |
 
 Public exposure of the routing host: Caddy terminates TLS for
 `stellar-router.wowmax.exchange` and path-splits it — `/bridge/*` goes to the
