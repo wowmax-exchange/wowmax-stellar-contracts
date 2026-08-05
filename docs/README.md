@@ -32,9 +32,9 @@ Built under Stellar Community Fund Build Award #43.
 | Public API (Swagger) | https://api-gateway.wowmax.exchange/docs |
 | OpenAPI JSON | https://api-gateway.wowmax.exchange/docs-json |
 | TypeScript SDK | https://www.npmjs.com/package/@wowmax/sdk |
-| Execution contracts (this repo) | https://github.com/wowswap-io/wowmax-stellar-contracts |
-| Bridge aggregator source | https://github.com/wowswap-io/bridge-aggregator |
-| Benchmark harness | https://github.com/wowswap-io/wowmax-benchmarks |
+| Execution contracts (this repo) | https://github.com/wowmax-exchange/wowmax-stellar-contracts |
+| Bridge aggregator source | https://github.com/wowmax-exchange/bridge-aggregator |
+| Benchmark harness | https://github.com/wowmax-exchange/wowmax-benchmarks |
 
 ## Support
 

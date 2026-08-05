@@ -48,7 +48,7 @@ Live validations during the build (not synthetic):
 
 **Criterion: Runbook published with 6+ incident scenarios — DONE (8).**
 
-https://github.com/wowswap-io/wowmax-stellar-contracts/blob/master/docs/RUNBOOK.md
+https://github.com/wowmax-exchange/wowmax-stellar-contracts/blob/master/docs/RUNBOOK.md
 — commits `e452d35` (initial, 8 scenarios) and `41a81ba` (system-map
 correction after tracing the public edge). Two scenarios are written from
 real incidents handled during the build:
@@ -68,7 +68,7 @@ real incidents handled during the build:
 **Criterion: Public documentation site live — [FILL: Pages URL].**
 
 Content published in-repo (commits `26960d1`, `b4734fc`):
-https://github.com/wowswap-io/wowmax-stellar-contracts/tree/master/docs
+https://github.com/wowmax-exchange/wowmax-stellar-contracts/tree/master/docs
 
 * `README.md` — index and live-surface directory
 * `ARCHITECTURE.md` — components, data flow, the two Stellar execution
@@ -82,7 +82,7 @@ https://github.com/wowswap-io/wowmax-stellar-contracts/tree/master/docs
   joins the ranking and the monitoring matrix
 
 GitHub Pages URL once enabled (Settings → Pages → master + /docs):
-https://wowswap-io.github.io/wowmax-stellar-contracts/ — live, verified 2026-08-03.
+https://wowmax-exchange.github.io/wowmax-stellar-contracts/ — live, verified 2026-08-03.
 
 **Criterion: Developer quickstart under 15 minutes — DONE.**
 
@@ -124,7 +124,7 @@ https://www.npmjs.com/package/@wowmax/sdk — `@wowmax/sdk@0.2.0`
 (`latest`). 0.1.0 shipped the DEX cycle; 0.2.0 adds the full bridge cycle
 (`bridgeChains/Tokens/Routes/Quote/QuoteCompat/Execute/Status`), typed
 responses with liquidity-depth passthrough, and provider-aware 60 s timeouts
-for fan-out calls. Source: https://github.com/wowswap-io/wowmax-sdk (tags
+for fan-out calls. Source: https://github.com/wowmax-exchange/wowmax-sdk (tags
 `631f9fe` → `e02733f`).
 
 **Criterion: Quickstart under 10 minutes — DONE.**
@@ -134,7 +134,7 @@ docs-site quickstart covers the complete non-custodial cycle.
 
 **Criterion: p95 latency benchmark published — DONE.**
 
-https://github.com/wowswap-io/wowmax-stellar-contracts/blob/master/docs/D10-LATENCY.md
+https://github.com/wowmax-exchange/wowmax-stellar-contracts/blob/master/docs/D10-LATENCY.md
 (commit `8154a32`, raw timings attached as `bench_p95.json`):
 
 | Public endpoint | n | p50 | p95 | p99 |
