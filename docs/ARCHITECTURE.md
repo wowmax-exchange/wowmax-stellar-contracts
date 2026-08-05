@@ -48,10 +48,13 @@ unsigned swap transaction. It maintains a routing graph over classic SDEX
 order books and Soroban AMM pools, refreshed live — by policy there is no
 reserve cache: every quote reads current Horizon and Soroban state.
 
-**bridge-aggregator** quotes every wired bridge in parallel, folds in
-composite routes (a bridge leg plus a WOWMAX DEX leg on Stellar), ranks all
-candidates on one net-USD axis, and can produce the unsigned execution
-payload for the winning route. One misbehaving provider SDK cannot take the
+**bridge-aggregator** quotes every wired provider in parallel — Near Intents
+(through the Aurora Intents gateway), Squid, which is also the path Axelar's
+ITS Hub takes to Stellar, and Allbridge — folds in composite routes (a bridge
+leg plus a WOWMAX DEX leg on Stellar), ranks all candidates on one net-USD
+axis, and can produce the unsigned execution payload for the winning route.
+Adapters are scoped to the chains where they genuinely serve routes, so the
+ranking lists real options instead of the same path under two names. One misbehaving provider SDK cannot take the
 service down: provider calls are isolated and a refusal is reported as a
 structured `noQuote` with the provider's own reason.
 
@@ -97,7 +100,7 @@ comparison: pool-based bridges, intent/RFQ systems and message-passing
 bridges all reduce to *net output after all fees, in USD, with an ETA and a
 liquidity bound where the provider exposes one*. Two route kinds compete:
 
-* **Direct** — one bridge carries the transfer end to end.
+* **Direct** — one provider carries the transfer end to end.
 * **Composite** — the WOWMAX Stellar DEX leg converts the asset on Stellar,
   then a bridge carries a stable leg (or vice versa). Composites exist
   because the best route for `XLM → USDT (BSC)` is often *not* a single

@@ -22,7 +22,7 @@ real case.
 | api-gateway          | k8s cluster (public)           | 443   | `GET /docs`, `GET /chains/100000148/quote?...` |
 | VictoriaMetrics      | routing host, docker `vmstellar` | 8428 (localhost, basic auth) | `GET /health` |
 | stellar-prober       | routing host, systemd `stellar-prober` | 9105 (localhost) | `GET /metrics` |
-| Grafana              | internal monitoring stack      | 443   | dashboards `Stellar Router & DEX Venues`, `Stellar Bridges`; public read-only: https://grafana.wowmax.exchange |
+| Grafana              | internal monitoring stack      | 443   | dashboards `Stellar Router & DEX Venues`, `Stellar Bridges` |
 
 Public exposure of the routing host: Caddy terminates TLS for
 `stellar-router.wowmax.exchange` and path-splits it — `/bridge/*` goes to the
@@ -40,8 +40,14 @@ VictoriaMetrics through the `VM Stellar` datasource; alert rules live in the
 the `team=stellar` notification policy to Telegram.
 
 DEX venues covered: SDEX (classic order book), Soroswap, Phoenix, Aquarius.
-Bridges covered: Near Intents, Allbridge, Axelar, Squid (Coral RFQ), plus
-composite routes (bridge + WOWMAX Stellar leg).
+Bridges covered on Stellar routes: **Near Intents** (reached through the
+Aurora Intents gateway), **Squid** — which is also how Axelar's ITS Hub
+serves Stellar — and **Allbridge** (currently gated off, see Scenario 6),
+plus composite routes (bridge + WOWMAX Stellar leg). A direct Axelar adapter
+also exists but is scoped to the EVM chains where Axelar has gateway assets;
+on Stellar it is skipped (`CC_AXELAR_SKIP_CHAINS`, default `stellar`) and its
+unsupported-route rows are suppressed (`CC_SILENT_UNSUPPORTED`, default
+`axelar`) so the ranking shows options rather than noise.
 
 ## 2. Alert catalogue
 
@@ -195,11 +201,20 @@ mitigation, the ranking simply serves the next best route. If one provider is
 down for hours, raise it with the provider (correlationId attached) and note
 it in the incident log.
 
-### Scenario 6 — Bridge provider protocol deprecation (permanent, r5 possible)
+### Scenario 6 — Bridge provider withdraws an architecture (r5 possible)
 
-**Real case, 2026-08-02: Allbridge suspends Stellar.** Monitoring surfaced
-`allbridge → 400` on USDC↔USDC in both directions. Isolated SDK probing (full
-messenger matrix on SDK 3.32.0 **and** 3.32.1, both directions) established:
+**Real case: Allbridge's Stellar routes stop after a security incident.**
+On 2026-07-19 Allbridge Core was drained of ~$1.65M through a flash-loan
+manipulation of its Solana stablecoin pool; the protocol paused, urged LPs to
+withdraw, later resumed only the routes that do **not** rely on liquidity
+pools, and announced it is phasing pool-based swaps out in favour of CCTP and
+LayerZero routing. Allbridge's Stellar leg is pool-based (Soroban pool +
+messenger contracts), so it fell on the disabled side of that line.
+
+Our monitoring surfaced the symptom on 2026-08-02 as `allbridge → 400` on
+USDC↔USDC in both directions — before we knew the cause. Isolated SDK probing
+(full messenger matrix on SDK 3.32.0 **and** 3.32.1, both directions)
+established:
 
 * Core API `/receive-fee` rejects both pool messengers —
   `"Allbridge and Wormhole messengers are not supported"`;
@@ -208,24 +223,35 @@ messenger matrix on SDK 3.32.0 **and** 3.32.1, both directions) established:
   for Stellar;
 * `transferTime` maps arrive empty for every destination.
 
-Conclusion: the outage is on the provider's side and permanent until they
-migrate Stellar to a live messenger. **Fix applied:** the adapter's
-`supports()` now declines any SRB leg, so the ranking reports a clean
-`unsupported route` instead of a scary 400, and composite legs stop with it
-(composites gate on `supports()`).
+A later check added one more signal: the SRB pool's 7-day APR is exactly
+zero while its 30-day APR still carries pre-incident earnings — the pool is
+not merely refusing quotes, it has stopped earning fees at all.
 
-**Re-enable path.** When Allbridge revives Stellar, set
-`CC_ALLBRIDGE_SRB_ENABLED=true` in the bridge-aggregator env and restart.
-Check their side first by re-running the messenger matrix probe
-(`abdbg2.mjs`) from the project directory.
+Conclusion: this is not a transient outage and not a bug on our side. It is a
+provider retiring an entire route architecture. **Fix applied:** the
+adapter's `supports()` declines any SRB leg, so the ranking reports a clean
+`unsupported route` instead of a 400, and composite legs stop with it
+(composites gate on `supports()`). Users saw no interruption: the ranking
+served the remaining providers, including the composite `squid+wowmax` route,
+in the same probe cycle.
+
+**Re-enable path.** The trigger is not "Allbridge is back" but "Allbridge
+serves Stellar on a non-pool architecture" — watch for a CCTP/LayerZero
+Stellar deployment on their side. Verify with the messenger matrix probe
+(`abdbg2.mjs`, run from the project directory): a live route shows a non-zero
+`getAmountToBeReceived` and a real gas-fee option under some messenger. Only
+then set `CC_ALLBRIDGE_SRB_ENABLED=true` and restart the aggregator.
 
 **Known limitation while disabled:** composite (bridge + WOWMAX leg) coverage
 for stable pairs shrinks, since those composites were built on Allbridge.
 
-**General playbook for any provider deprecation:** reproduce with the
+**General playbook when a provider's routes die:** reproduce with the
 provider's own SDK in isolation (rule out our adapter), capture the exact API
-error, gate the route off cleanly in `supports()` behind an env re-enable
-flag, document here, and open a channel with the provider.
+error, then look outward — provider status posts and incident coverage often
+explain in one sentence what an error message never will. Gate the route off
+cleanly in `supports()` behind an env re-enable flag, write down the
+re-enable *condition* rather than a vague "when it works again", and document
+the case here.
 
 ### Scenario 7 — Public gateway e2e down (r6, critical)
 
@@ -299,6 +325,15 @@ anything missed.
 
 ## 5. Change log
 
+* 2026-08-05 (later) — Bridge source list corrected: the direct Axelar
+  adapter is scoped away from Stellar (Squid carries Axelar ITS there) and its
+  unsupported rows suppressed; probe pairs moved from BSC to the Ethereum
+  corridor (`stellar:USDC->eth:USDT`, `stellar:XLM->eth:ETH`,
+  `eth:USDC->stellar:USDC`).
+* 2026-08-05 — Scenario 6 rewritten once the root cause was established: the
+  Allbridge Stellar outage traces to the 2026-07-19 exploit and the
+  protocol's subsequent retirement of pool-based routing, not to an isolated
+  Stellar decision. Re-enable condition tightened accordingly.
 * 2026-08-02 (later) — System map corrected: Caddy on the routing host
   publicly serves `stellar-router.wowmax.exchange` with a path split
   (`/bridge/*` → bridge-aggregator :8085, rest → router :8083); the k8s
