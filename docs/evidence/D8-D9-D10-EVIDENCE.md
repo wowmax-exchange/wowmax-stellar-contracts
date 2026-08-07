@@ -65,7 +65,9 @@ real incidents handled during the build:
 
 ## Deliverable 9 — Documentation & Developer Integration Guide
 
-**Criterion: Public documentation site live — [FILL: Pages URL].**
+**Criterion: Public documentation site live — DONE.**
+
+https://wowmax-exchange.github.io/wowmax-stellar-contracts/
 
 Content published in-repo (commits `26960d1`, `b4734fc`):
 https://github.com/wowmax-exchange/wowmax-stellar-contracts/tree/master/docs
