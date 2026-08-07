@@ -29,6 +29,7 @@ Built under Stellar Community Fund Build Award #43.
 | --- | --- |
 | Swap app | https://app.wowmax.exchange |
 | Live monitoring (public dashboards) | https://grafana.wowmax.exchange |
+| Build report (blog) | https://medium.com/@WOWMAX/what-stellar-taught-us-in-3-months-2ef06d53b2e3 |
 | Public API (Swagger) | https://api-gateway.wowmax.exchange/docs |
 | OpenAPI JSON | https://api-gateway.wowmax.exchange/docs-json |
 | TypeScript SDK | https://www.npmjs.com/package/@wowmax/sdk |
