@@ -91,14 +91,16 @@ unsigned swap XDR in ≈3 more, optional real broadcast, cross-chain quote in
 the same client. No API key and no funds required except the optional
 broadcast step.
 
-**Criterion: Public post-mortem blog published — [FILL: Medium URL].**
+**Criterion: Public post-mortem blog published — DONE.**
 
-Article prepared ("WOWMAX on Stellar: What We Built vs. What We Planned"):
-honest roadmap deltas (pre-award re-scope to the aggregation track; Squid as
-the fourth bridge; composite routes as an unplanned innovation; the Allbridge
-suspension as a live validation of the aggregation thesis), published
-production numbers, and lessons. Venue: medium.com/wowmax-exchange →
-[FILL URL after publishing].
+"What Stellar Taught Us in 3 Months" — https://medium.com/@WOWMAX/what-stellar-taught-us-in-3-months-2ef06d53b2e3
+
+Covers the roadmap deltas (pre-award re-scope to the aggregation track; Squid
+arriving as an additional provider and carrying Axelar's ITS Hub traffic to
+Stellar; composite routes as an unplanned innovation; the Allbridge outage —
+traced to the 2026-07-19 exploit and that provider's retirement of pool-based
+routing — as a live validation of the aggregation thesis), the published
+production numbers, and the operational lessons.
 
 ---
 
