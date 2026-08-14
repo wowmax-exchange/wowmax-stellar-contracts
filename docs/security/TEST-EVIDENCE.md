@@ -2,8 +2,8 @@
 
 Execution record for the Soroban Security Audit Bank readiness review (checklist item: *integration testing code present and executed*). Generated from the raw `cargo test --workspace` output.
 
-* **Run at:** 2026-08-14 13:32 UTC
-* **Commit:** `59549912e2672cf8d6ac556a41234122b4c46259`  ⚠️ working tree not clean at generation time
+* **Run at:** 2026-08-14 13:36 UTC
+* **Commit:** `9a0232af517bdb9ece8cae6d201a98e40c373acf`
 * **Command:** `cd contracts && stellar contract build && cargo test --workspace`
 * **Toolchain:** stellar 26.0.0 (60f7458e7ecffddf2f2d91dc6d0d2db4fab03ecc) · cargo 1.95.0 (f2d3ce0bd 2026-03-21) · rustc 1.95.0 (59807616e 2026-04-14)
 * **Wasm target:** `wasm32v1-none`
