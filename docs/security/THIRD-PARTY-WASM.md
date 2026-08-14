@@ -4,17 +4,23 @@ Binary artifacts of external protocols, committed so that the adapter test
 suites can run against real venue contracts instead of mocks. They are test
 fixtures only: none is deployed by this project, and the executor contract
 (`contracts/router`, the audit target) imports none of them — its suite runs
-against an in-repo mock venue.
+against an in-repo mock venue and against Soroswap contracts built from source
+in this workspace.
 
-Upstream provenance is recorded per protocol below. `[FILL]` marks a value to
-be confirmed against the upstream project before submission.
+Provenance. These binaries were inherited from the Soroswap-Aggregator
+project, which this workspace was originally forked from, and have been
+carried forward unchanged as test fixtures. We do not hold a record of the
+upstream commit each was built from, and rather than assert one we cannot
+verify, the table below states what is verifiable: the exact bytes in this
+repository, pinned by sha256.
 
-| Protocol | Upstream repository | Version / commit |
-|---|---|---|
-| Soroswap | [FILL] | [FILL] |
-| Aquarius | [FILL] | [FILL] |
-| Phoenix | [FILL] | [FILL] |
-| Comet | [FILL] | [FILL] |
+An auditor who needs a specific fixture matched to upstream source can compare
+these digests against a build of the corresponding protocol's own repository —
+Soroswap, Aquarius, Phoenix and Comet all publish theirs. None of these blobs
+is deployed by this project, none is imported by the audit target, and the
+executor's own test suite runs against contracts built from source in this
+workspace plus an in-repo mock, so no security property of the audited
+contract depends on their provenance.
 
 ## Inventory
 
