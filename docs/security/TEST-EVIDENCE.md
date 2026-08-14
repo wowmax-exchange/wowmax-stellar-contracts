@@ -2,8 +2,8 @@
 
 Execution record for the Soroban Security Audit Bank readiness review (checklist item: *integration testing code present and executed*). Generated from the raw `cargo test --workspace` output.
 
-* **Run at:** 2026-08-14 13:26 UTC
-* **Commit:** `8211a3c52cc47e09943462c3c392d705f706357e`
+* **Run at:** 2026-08-14 13:32 UTC
+* **Commit:** `59549912e2672cf8d6ac556a41234122b4c46259`  ⚠️ working tree not clean at generation time
 * **Command:** `cd contracts && stellar contract build && cargo test --workspace`
 * **Toolchain:** stellar 26.0.0 (60f7458e7ecffddf2f2d91dc6d0d2db4fab03ecc) · cargo 1.95.0 (f2d3ce0bd 2026-03-21) · rustc 1.95.0 (59807616e 2026-04-14)
 * **Wasm target:** `wasm32v1-none`
@@ -11,7 +11,7 @@ Execution record for the Soroban Security Audit Bank readiness review (checklist
 
 ## Result
 
-**122 passed · 0 failed · 0 ignored**
+**127 passed · 0 failed · 0 ignored**
 
 | Crate | Passed | Failed | Ignored | In audit scope |
 |---|---:|---:|---:|---|
@@ -19,7 +19,7 @@ Execution record for the Soroban Security Audit Bank readiness review (checklist
 | `wowmax_comet_adapter` | 21 | 0 | 0 | no |
 | `wowmax_phoenix_adapter` | 25 | 0 | 0 | no |
 | `wowmax_soroswap_adapter` | 26 | 0 | 0 | no |
-| `wowmax_stellar_router` | 27 | 0 | 0 | **yes — the deployed executor** |
+| `wowmax_stellar_router` | 32 | 0 | 0 | **yes — the deployed executor** |
 
 Suites reporting no tests (interface crate, test helpers, doc-tests): test_utils, wowmax_adapter_interface, wowmax_stellar_deployer.
 

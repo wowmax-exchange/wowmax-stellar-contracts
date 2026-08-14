@@ -1886,6 +1886,7 @@ name = "wowmax-stellar-router"
 version = "2.0.0"
 dependencies = [
  "soroban-sdk",
+ "test-utils",
 ]
 
 [[package]]

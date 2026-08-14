@@ -84,6 +84,9 @@ pub struct Stage {
 #[cfg(test)]
 mod test;
 
+#[cfg(test)]
+mod test_integration;
+
 /// Our convention is that `deadline == 0` means "no deadline", and the
 /// contract simply skips its own check. Soroswap has no such convention:
 /// it compares the value against the ledger timestamp, so a zero reads as
