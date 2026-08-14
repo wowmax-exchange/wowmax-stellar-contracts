@@ -11,25 +11,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install the wasm target
-        run: rustup target add wasm32v1-none
+      # Pinned deliberately. The wasm this repository builds is byte-identical
+      # to the contract deployed on mainnet only under this exact toolchain,
+      # and that correspondence is the point of the check. A floating stable
+      # would verify a different artifact than the one we claim.
+      - name: Install the pinned toolchain
+        uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          targets: wasm32v1-none
 
       - name: Cache cargo
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/bin
             ~/.cargo/registry
             ~/.cargo/git
             contracts/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-1.95.0-${{ hashFiles('contracts/Cargo.lock') }}
 
       - name: Install the Stellar CLI
+        uses: stellar/stellar-cli@v26.0.0
+
+      - name: Report versions
         run: |
-          if ! command -v stellar >/dev/null; then
-            cargo install --locked stellar-cli --version 26.0.0
-          fi
           stellar version
+          cargo --version
+          rustc --version
 
       # One workspace-wide build first: the adapter suites import the .wasm
       # artifacts of other crates, so every artifact must exist before any
@@ -41,3 +48,14 @@ jobs:
       - name: Run every test suite
         working-directory: contracts
         run: cargo test --workspace
+
+      # The repository must reproduce the deployed bytecode. If this ever
+      # diverges, the claim in docs/security/TEST-EVIDENCE.md is stale.
+      - name: Verify the wasm matches the deployed contract
+        working-directory: contracts
+        run: |
+          EXPECTED=$(python3 -c "import json;print(json.load(open('../public/mainnet.contracts.json'))['contracts']['executor']['wasmSha256'])")
+          ACTUAL=$(sha256sum target/wasm32v1-none/release/wowmax_stellar_router.wasm | cut -d' ' -f1)
+          echo "expected: $EXPECTED"
+          echo "actual:   $ACTUAL"
+          test "$EXPECTED" = "$ACTUAL"
