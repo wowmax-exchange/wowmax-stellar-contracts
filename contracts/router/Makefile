@@ -2,13 +2,11 @@ default: build
 
 all: test
 
-test: build
+test:
 	cargo test
 
 build:
-	cargo build --target wasm32-unknown-unknown --release
-	soroban contract optimize --wasm ../target/wasm32-unknown-unknown/release/wowmax_stellar_router.wasm
-	@rm ../target/wasm32-unknown-unknown/release/wowmax_stellar_router.wasm
+	stellar contract build
 
 fmt:
 	cargo fmt --all --check

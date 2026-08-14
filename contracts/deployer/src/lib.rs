@@ -42,5 +42,3 @@ impl Deployer {
         (deployed_address, res)
     }
 }
-
-mod test;

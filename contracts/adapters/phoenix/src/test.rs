@@ -16,7 +16,7 @@ use test_utils::phoenix_setup::{PhoenixTest, MultihopClient, TokenClient, Phoeni
 // use router::SoroswapRouterClient;
 
 mod deployer_contract {
-    soroban_sdk::contractimport!(file = "../../target/wasm32-unknown-unknown/release/soroswap_aggregator_deployer.optimized.wasm");
+    soroban_sdk::contractimport!(file = "../../target/wasm32v1-none/release/wowmax_stellar_deployer.wasm");
     pub type DeployerClient<'a> = Client<'a>;
 }
 use deployer_contract::DeployerClient;
@@ -33,7 +33,7 @@ fn create_soroswap_aggregator_phoenix_adapter<'a>(e: &Env) -> WowmaxStellarRoute
 }
 
 pub mod phoenix_adapter_contract {
-    soroban_sdk::contractimport!(file = "../../target/wasm32-unknown-unknown/release/phoenix_adapter.optimized.wasm");
+    soroban_sdk::contractimport!(file = "../../target/wasm32v1-none/release/wowmax_phoenix_adapter.wasm");
     pub type WowmaxStellarRouterPhoenixAdapterClientFromWasm<'a> = Client<'a>;
 }
 use phoenix_adapter_contract::WowmaxStellarRouterPhoenixAdapterClientFromWasm;

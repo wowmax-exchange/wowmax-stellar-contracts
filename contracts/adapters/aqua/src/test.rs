@@ -18,7 +18,7 @@ use crate::{WowmaxStellarRouterAquaAdapter, WowmaxStellarRouterAquaAdapterClient
 use aqua_setup::{AquaTest, TokenClient, AquaRouter};
 
 mod deployer_contract {
-    soroban_sdk::contractimport!(file = "../../target/wasm32-unknown-unknown/release/soroswap_aggregator_deployer.optimized.wasm");
+    soroban_sdk::contractimport!(file = "../../target/wasm32v1-none/release/wowmax_stellar_deployer.wasm");
     pub type DeployerClient<'a> = Client<'a>;
 }
 use deployer_contract::DeployerClient;
@@ -35,7 +35,7 @@ fn create_soroswap_aggregator_aqua_adapter<'a>(e: &Env) -> WowmaxStellarRouterAq
 }
 
 pub mod aqua_adapter_contract {
-    soroban_sdk::contractimport!(file = "../../target/wasm32-unknown-unknown/release/aqua_adapter.optimized.wasm");
+    soroban_sdk::contractimport!(file = "../../target/wasm32v1-none/release/wowmax_aqua_adapter.wasm");
     pub type WowmaxStellarRouterAquaAdapterClientFromWasm<'a> = Client<'a>;
 }
 use aqua_adapter_contract::WowmaxStellarRouterAquaAdapterClientFromWasm;

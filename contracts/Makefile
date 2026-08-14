@@ -1,18 +1,16 @@
-$MAKEFILES = $(shell find . -maxdepth 3 -type f -name Makefile)
 SUBDIRS = adapters router deployer
 default: build
 
 all: test
 
+# One workspace-wide build first: adapter and deployer test suites import the
+# .wasm artifacts of OTHER crates, so every artifact must exist before any
+# suite compiles. Per-crate builds in sequence cannot satisfy that.
 build:
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir build || break; \
-	done
+	stellar contract build
 
 test: build
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir test || break; \
-	done
+	cargo test --workspace
 
 fmt:
 	@for dir in $(SUBDIRS) ; do \
@@ -20,6 +18,4 @@ fmt:
 	done
 
 clean:
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir clean || break; \
-	done
+	cargo clean
