@@ -6,7 +6,6 @@ description = "Soroswap-Adapter is a smart contract on the Soroban platform, tai
 homepage = { workspace = true }
 repository = { workspace = true }
 authors = ["coderipper <joaquin@paltalabs.io>"]
-readme = "README.md"
 keywords = ["no_std", "wasm", "soroswap", "amm", "soroban"]
 publish = true
 

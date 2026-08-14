@@ -5,10 +5,23 @@
 //! OFF-chain; the contract only executes what it is handed. No VFalgo
 //! IP lives here.
 //!
-//! Progress:
-//!   S1  swap_soroswap  — one Soroswap path swap (DONE, mainnet)
-//!   S2  swap_aqua      — one Aquarius swap_chained hop (this file)
-//! Next: cross-protocol single-call plan, then the parts splitter (S4).
+//! The plan is UNTRUSTED input: the contract is publicly callable and
+//! nothing on-chain ties a plan to the WOWMAX pathfinder, so every guard
+//! below assumes an attacker-constructed plan. Venues are likewise
+//! untrusted callees. See docs/security/THREAT-MODEL.md.
+//!
+//! Entry points:
+//!   swap                     — Vec<Strand>: parallel splits, sequential
+//!                              hops within each strand
+//!   swap_merge               — Vec<Stage>: topologically-ordered DAG,
+//!                              one swap per graph edge (on-chain fan-in)
+//!   swap_soroswap            — single Soroswap path swap
+//!   swap_aqua                — single Aquarius swap_chained hop
+//!   swap_phoenix             — single Phoenix pool swap
+//!   swap_aqua_then_soroswap  — two-leg cross-protocol helper
+//!
+//! No admin, no upgrade path, no contract storage. Replacement is by
+//! redeployment.
 
 use soroban_sdk::auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation};
 use soroban_sdk::Map;
@@ -379,9 +392,9 @@ impl WowmaxAggregator {
 
         let src_before: i128 = token::Client::new(&env, &token_in).balance(&contract);
 
-        // 2) Pre-authorize the pool to move our token_in. Target guess =
-        //    the pool itself (Phoenix pools pull the offer). If simulation
-        //    shows a different target, swap `pool` for it (as with Aqua).
+        // 2) Pre-authorize the pool to move our token_in. Phoenix pools
+        //    pull the offer into the pool contract itself — confirmed on
+        //    mainnet (unlike Aquarius, where the router is the target).
         let transfer_args: Vec<Val> = vec![
             &env,
             contract.into_val(&env),

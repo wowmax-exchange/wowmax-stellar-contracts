@@ -7,7 +7,6 @@ description = "Deployer helper contract for WowmaxStellarRouter adapters."
 homepage = { workspace = true }
 repository = { workspace = true }
 authors = ["coderipper <joaquin@paltalabs.io>"]
-readme = "README.md"
 keywords = ["no_std", "wasm", "soroswap", "amm", "soroban"]
 publish = true
 

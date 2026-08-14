@@ -1,6 +1,6 @@
 {
   "protocolVersion": "22",
-  "soroban_sdk_version": "22.0.7",
+  "soroban_sdk_version": "25.3.1",
   "networkConfig": [
     {
       "network": "mainnet",

@@ -6,8 +6,8 @@ resolver = "2"
 version = "2.0.0"
 edition = "2021"
 license = "GPL-3.0-only"
-repository = "https://github.com/wowswap-io/wowmax-stellar-contracts"
-homepage = "https://github.com/wowswap-io/wowmax-stellar-contracts"
+repository = "https://github.com/wowmax-exchange/wowmax-stellar-contracts"
+homepage = "https://github.com/wowmax-exchange/wowmax-stellar-contracts"
 
 [workspace.dependencies]
 soroban-sdk = "25.3.1"

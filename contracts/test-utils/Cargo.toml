@@ -4,7 +4,6 @@ authors = ["esteblock"]
 version = { workspace = true }
 edition = { workspace = true }
 repository = { workspace = true }
-readme = "README.md"
 keywords = ["no_std", "wasm", "soroswap", "amm", "soroban"]
 publish = true
 

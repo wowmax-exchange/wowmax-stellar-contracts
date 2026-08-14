@@ -66,7 +66,7 @@ exposes:
 | `swap_aqua(...)` | Single Aquarius `swap_chained` hop on a named pool. |
 | `swap_phoenix(...)` | Single Phoenix pool swap. |
 | `swap_aqua_then_soroswap(...)` | Cross-protocol two-leg helper (Aquarius → Soroswap). |
-| `swap_merge(...)` | Pooled-merge execution (deployed as the separate `executor_merge` contract): runs the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). One swap per graph edge keeps heavy multi-branch routes within the Soroban instruction budget. |
+| `swap_merge(...)` | Pooled-merge execution: runs the route as topologically-ordered stages, splitting each token's pooled balance once across its pools (on-chain fan-in). One swap per graph edge keeps heavy multi-branch routes within the Soroban instruction budget. |
 
 ### Plan model
 
@@ -118,9 +118,20 @@ redeployment.
 
 ```bash
 cd contracts
-stellar contract build
-cargo test -p wowmax-stellar-router
+make test          # stellar contract build, then cargo test --workspace
 ```
+
+Or step by step:
+
+```bash
+cd contracts
+stellar contract build              # -> target/wasm32v1-none/release/wowmax_*.wasm
+cargo test --workspace              # every suite
+cargo test -p wowmax-stellar-router # the executor only
+```
+
+The workspace must be built before any test suite is compiled: the adapter
+suites import the `.wasm` artifacts of other crates.
 
 The executor test suite covers the splitter arithmetic and remainder
 handling, the slippage guard, token continuity, input validation, and a
@@ -130,6 +141,11 @@ also reports the CPU budget consumed by a deliberately heavy plan
 
 Requires `stellar` CLI 26+ and the `wasm32v1-none` target. Produces
 `contracts/target/wasm32v1-none/release/wowmax_stellar_router.wasm`.
+
+## Security
+
+Threat model and data flow diagram: [`docs/security/`](./docs/security/).
+Vulnerability disclosure: [SECURITY.md](./SECURITY.md).
 
 ## About WOWMAX
 
