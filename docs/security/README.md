@@ -30,8 +30,8 @@ classic SDEX path (executed at protocol level, not through this contract).
 | 3 | **Integration tests present and executed** | [TEST-EVIDENCE.md](TEST-EVIDENCE.md) — 127 passed, 0 failed, with toolchain and command. The executor is exercised both against a deliberately hostile mock and against real Soroswap factory/pair/router contracts. Re-run on every push by [`ci.yml`](../../.github/workflows/ci.yml) |
 | 4 | **Threat model** — completed, assessed against the dataflow | [THREAT-MODEL.md](THREAT-MODEL.md) — STRIDE per the SDF template, 15 issues with unique IDs, each derived from a numbered interaction and each remediation tied to the test that proves it |
 | 5 | **Dataflow diagram** — trust boundaries and data entities identified | [DATAFLOW.md](DATAFLOW.md) — 5 trust boundaries, 13 interactions, entity and data inventory |
-| 6 | **Tooling scan** (bonus per the checklist, **required** per Official Rules) | *in progress — Scout static analysis* |
-| 7 | **Remediation plan** for scan findings | *follows the scan* |
+| 6 | **Tooling scan** (bonus per the checklist, **required** per Official Rules) | [SCAN-REPORT.md](SCAN-REPORT.md) — Scout v0.3.16, 36 detectors, 43 findings triaged, 0 real vulnerabilities. Includes the two incompatibilities between Scout and `soroban-sdk 25.3.x` and the workarounds needed to make the scan run at all |
+| 7 | **Remediation plan** for scan findings | [SCAN-REPORT.md](SCAN-REPORT.md#remediation-plan) — every finding resolved by an existing guarantee: the release profile, a preceding bounds check, or a named test. No code change required |
 
 ## Reproducibility
 
