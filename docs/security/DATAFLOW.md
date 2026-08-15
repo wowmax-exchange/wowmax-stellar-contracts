@@ -77,6 +77,11 @@ Explicitly **out of scope**, and why:
 
 ## 3. Diagram
 
+![Data flow diagram: user side, WOWMAX off-chain services, the public network, and on-chain execution, with the executor contract at the centre](dataflow.svg)
+
+<details>
+<summary>Diagram source (Mermaid) — edit this and re-export <code>dataflow.svg</code> to keep the two in step</summary>
+
 ```mermaid
 flowchart TB
     subgraph USER["User side — keys never leave"]
@@ -120,6 +125,8 @@ flowchart TB
     linkStyle 9 stroke:#c0392b,stroke-width:3px
     linkStyle 10 stroke:#c0392b,stroke-width:3px
 ```
+
+</details>
 
 Red edges cross **TB3** and **TB4** — the two boundaries where the contract
 consumes data it cannot trust. They carry the bulk of the threat model.

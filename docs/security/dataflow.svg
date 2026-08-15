@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 700" font-family="Helvetica, Arial, sans-serif">
+<defs>
+  <marker id="k" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#3d3d3d"/></marker>
+  <marker id="r" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto"><path d="M0,0 L0,7 L10,3.5 z" fill="#c0392b"/></marker>
+</defs>
+<style>
+ .z{fill:#f6f8fc;stroke:#93a8c4;stroke-dasharray:6,4}
+ .zr{fill:#fdf6f5;stroke:#c0392b;stroke-dasharray:6,4}
+ .zt{font-size:12px;font-weight:bold;fill:#41597d}
+ .b{fill:#fff;stroke:#41597d}
+ .bn{font-size:11.5px;text-anchor:middle}
+ .bs{font-size:9px;text-anchor:middle;fill:#6b6b6b}
+ .e{stroke:#3d3d3d;fill:none;marker-end:url(#k)}
+ .er{stroke:#c0392b;stroke-width:2;fill:none;marker-end:url(#r)}
+ .l{font-size:10px;fill:#3d3d3d}
+ .lr{font-size:10px;fill:#c0392b;font-weight:bold}
+</style>
+
+<rect class="z" x="14" y="14" width="290" height="118" rx="6"/>
+<text class="zt" x="26" y="34">USER SIDE - keys never leave</text>
+<rect class="b" x="30" y="48" width="120" height="46" rx="4"/>
+<text class="bn" x="90" y="68">Wallet</text><text class="bs" x="90" y="82">Freighter / xBull</text>
+<rect class="b" x="168" y="48" width="120" height="46" rx="4"/>
+<text class="bn" x="228" y="68">Front end / SDK</text><text class="bs" x="228" y="82">app.wowmax.exchange</text>
+<path class="e" d="M166,71 L152,71"/>
+<text class="l" x="159" y="112" text-anchor="middle">I4</text>
+
+<rect class="z" x="344" y="14" width="290" height="118" rx="6"/>
+<text class="zt" x="356" y="34">WOWMAX OFF-CHAIN - no keys</text>
+<rect class="b" x="360" y="48" width="120" height="46" rx="4"/>
+<text class="bn" x="420" y="74">api-gateway</text>
+<rect class="b" x="498" y="48" width="120" height="46" rx="4"/>
+<text class="bn" x="558" y="68">Router v2</text><text class="bs" x="558" y="82">pathfinder builds plan</text>
+<path class="e" d="M482,62 L496,62"/>
+<path class="e" d="M496,80 L484,80"/>
+
+<path class="e" d="M290,58 L358,58"/>
+<text class="l" x="324" y="52" text-anchor="middle">I1</text>
+<path class="e" d="M358,84 L292,84"/>
+<text class="l" x="324" y="99" text-anchor="middle">I2</text>
+
+<rect class="z" x="674" y="14" width="292" height="118" rx="6"/>
+<text class="zt" x="686" y="34">PUBLIC NETWORK</text>
+<rect class="b" x="690" y="48" width="120" height="46" rx="4"/>
+<text class="bn" x="750" y="68">Soroban RPC</text><text class="bs" x="750" y="82">multi-provider</text>
+<rect class="b" x="828" y="48" width="122" height="46" rx="4"/>
+<text class="bn" x="889" y="68">Stellar network</text><text class="bs" x="889" y="82">consensus</text>
+<path class="e" d="M620,64 L688,64"/>
+<text class="l" x="654" y="58" text-anchor="middle">I3</text>
+<path class="e" d="M812,71 L826,71"/>
+<text class="l" x="819" y="112" text-anchor="middle">I6</text>
+
+<path class="e" d="M90,94 L90,158 L750,158 L750,96"/>
+<text class="l" x="420" y="153" text-anchor="middle">I5 signed transaction - keys never leave the wallet</text>
+
+<rect class="zr" x="14" y="250" width="952" height="420" rx="6"/>
+<text class="zt" x="30" y="274" fill="#c0392b">ON-CHAIN EXECUTION</text>
+
+<path class="er" d="M889,94 L889,196 L490,196 L490,306"/>
+<text class="lr" x="498" y="216">I7 - TB3: the PLAN is untrusted input</text>
+
+<rect class="b" x="330" y="306" width="320" height="72" rx="5" style="stroke:#c0392b;stroke-width:2.2"/>
+<text x="490" y="332" font-size="14" font-weight="bold" text-anchor="middle">WowmaxAggregator</text>
+<text class="bs" x="490" y="348">CBMPYAEO... no admin, no upgrade, no storage</text>
+<text x="490" y="366" font-size="10.5" font-weight="bold" text-anchor="middle" fill="#c0392b">IN AUDIT SCOPE</text>
+
+<rect class="b" x="40" y="540" width="190" height="60" rx="5" style="stroke:#7a7a7a"/>
+<text class="bn" x="135" y="564">SAC token contracts</text><text class="bs" x="135" y="580">XLM, USDC, AQUA</text>
+
+<rect class="b" x="750" y="540" width="196" height="60" rx="5" style="stroke:#c0392b;stroke-width:1.6"/>
+<text class="bn" x="848" y="561">Venue contracts</text>
+<text class="bs" x="848" y="575">Soroswap, Aquarius, Phoenix</text>
+<text x="848" y="590" font-size="9" font-weight="bold" text-anchor="middle" fill="#c0392b">UNTRUSTED CALLEES</text>
+
+<path class="e" d="M328,322 L135,322 L135,538"/>
+<text class="l" x="142" y="316">I8 pull input</text>
+<path class="e" d="M328,358 L215,358 L215,538"/>
+<text class="l" x="222" y="352">I13 forward proceeds</text>
+<path class="e" d="M75,540 L75,432 L430,432 L430,380"/>
+<text class="l" x="84" y="426">I12 balance reads</text>
+
+<path class="er" d="M652,322 L890,322 L890,538"/>
+<text class="lr" x="660" y="316">I9 - TB4: scoped pre-authorization</text>
+<path class="er" d="M652,358 L820,358 L820,538"/>
+<text class="lr" x="660" y="352">I10 venue swap call</text>
+<path class="er" d="M770,540 L770,470 L560,470 L560,380"/>
+<text class="lr" x="568" y="464">I11 delivered tokens</text>
+
+<text class="l" x="30" y="626" font-size="9.5">I1 quote request  ·  I2 route, plan and unsigned XDR  ·  I3 reserve reads  ·  I4 wallet review  ·  I6 submit</text>
+<text class="l" x="30" y="642" font-size="9.5">I7 carries user, token_in, token_out, amount_in, amount_out_min, deadline and the plan  ·  I9 scopes one transfer: exact token, recipient and amount</text>
+<text class="l" x="30" y="658" font-size="9.5" fill="#8a8a8a">I11: the amount a venue reports is NOT trusted - only the contract's own balance delta counts. Red = the contract consumes data it cannot trust.</text>
+</svg>
